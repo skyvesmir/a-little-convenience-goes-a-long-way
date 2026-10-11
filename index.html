@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>あったらちょっと便利そうなツール達</title>
+<meta name="description" content="思いついた「あったらちょっと便利そう」を、小さなツールにして置いていく場所。ツールは必要に応じて追加していきます。">
+<meta name="theme-color" content="#1d5457">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🧰%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+
+<noscript>
+<style>
+  /* JavaScriptが無効でも、内容が読めるようにする */
+  .hero{height:auto}
+  .hero .stage{position:relative;min-height:100vh}
+  .hero-sub{opacity:1}
+  .rail{height:auto}
+  .rail-stage{position:relative;height:auto;min-height:100vh;overflow:visible}
+  .rail-view{overflow-x:auto;padding-bottom:32px}
+  .tool{opacity:1}
+  .closing .ch{opacity:1}
+</style>
+</noscript>
+
+<style>
+/* =========================================================================
+   デザイントークン
+   作業台（ペグボード）に道具を掛けていくイメージ。
+   ツールの種類に依存しない配色にしてあります。
+   ========================================================================= */
+:root{
+  --ink:    #10282a;   /* 文字・枠線 */
+  --petrol: #1d5457;   /* ボードの地色 */
+  --mist:   #e6ece8;   /* 明るい地色 */
+  --chalk:  #f4f7f5;   /* カード・ボード上の文字 */
+  --tape:   #f5c518;   /* 養生テープ色（強調） */
+  --display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+  --body:    "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+}
+
+*{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{
+  margin:0;
+  background:var(--mist);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:16px;
+  line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+a{ color:inherit; }
+a:focus-visible,button:focus-visible{ outline:3px solid var(--ink); outline-offset:3px; }
+.sr{
+  position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+/* ---- ボタン ---- */
+.btn{
+  display:inline-block;
+  padding:.7em 1.5em;
+  font:700 16px/1.2 var(--body);
+  color:var(--ink);
+  background:var(--tape);
+  border:3px solid var(--ink);
+  border-radius:6px;
+  box-shadow:5px 5px 0 var(--ink);
+  text-decoration:none;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.btn:hover{ transform:translate(-2px,-2px); box-shadow:7px 7px 0 var(--ink); }
+.btn:active{ transform:translate(3px,3px); box-shadow:2px 2px 0 var(--ink); }
+
+/* =========================================================================
+   1. ヒーロー（スクロールで言葉が集まる）
+   ========================================================================= */
+.hero{ position:relative; height:230vh; }
+.hero .stage{
+  position:sticky; top:0;
+  height:100vh; height:100svh;
+  overflow:hidden;
+  display:flex; flex-direction:column; justify-content:center;
+  padding:0 6vw;
+  background-image:radial-gradient(circle, rgba(16,40,42,.17) 2.5px, transparent 3px);
+  background-size:40px 40px;
+  background-position:0 var(--pegY, 0px);
+}
+.topbar{
+  position:absolute; left:6vw; right:6vw; top:0;
+  display:flex; justify-content:space-between; align-items:center; gap:16px;
+  padding-top:clamp(16px,3vh,28px);
+  font-size:14px; font-weight:700;
+}
+.topbar a{ text-decoration:none; border-bottom:2px solid var(--ink); }
+
+.hero-title{
+  margin:0;
+  font-family:var(--display);
+  font-weight:400;
+  font-size:min(20vw,21vh);
+  font-size:min(20vw,21svh);
+  line-height:1;
+  letter-spacing:-.02em;
+}
+.hero-title .ln{ display:block; white-space:nowrap; will-change:transform; }
+
+.hero-sub{ margin-top:clamp(18px,4vh,40px); max-width:34em; opacity:0; }
+.hero-sub p{
+  margin:0 0 18px; font-size:clamp(16px,1.5vw,20px); font-weight:500;
+  text-wrap:balance; word-break:auto-phrase;   /* 文節の途中で折り返さない（対応ブラウザのみ） */
+}
+
+.cue{
+  position:absolute; left:6vw; bottom:clamp(14px,3vh,28px);
+  display:flex; align-items:center; gap:12px;
+  font-size:13px; font-weight:700;
+}
+.cue i{
+  display:block; width:2px; height:40px; background:var(--ink);
+  transform-origin:top;
+  animation:drip 1.8s ease-in-out infinite;
+}
+@keyframes drip{ 0%{transform:scaleY(0)} 50%{transform:scaleY(1)} 100%{transform:scaleY(0)} }
+
+/* =========================================================================
+   2. 養生テープ（スクロール量に合わせて流れる）
+   ========================================================================= */
+.tapes{ position:relative; height:clamp(200px,28vw,300px); overflow:hidden; background:var(--mist); }
+.tape{
+  position:absolute; left:-10%; width:120%;
+  overflow:hidden;
+  padding:.3em 0;
+  font-family:var(--display);
+  font-size:clamp(22px,3.6vw,44px);
+  line-height:1.2;
+  white-space:nowrap;
+}
+.tape-a{ top:20%; background:var(--tape); color:var(--ink); border-block:4px solid var(--ink); transform:rotate(-2.6deg); }
+.tape-b{ top:38%; background:var(--ink);  color:var(--tape); transform:rotate(2.6deg); }
+.tape-track{ display:flex; width:max-content; will-change:transform; }
+.tape-track span{ flex:none; padding-right:1.4em; }
+
+/* =========================================================================
+   3. 道具棚（縦スクロールが横移動になる）
+   ========================================================================= */
+.rail{ position:relative; background:var(--petrol); color:var(--chalk); }
+.rail-stage{
+  position:sticky; top:0;
+  height:100vh; height:100svh;
+  overflow:hidden;
+  display:flex; flex-direction:column;
+  background-image:radial-gradient(circle, rgba(0,0,0,.3) 3px, transparent 3.5px);
+  background-size:44px 44px;
+  background-position:var(--bgx, 0px) 0;
+}
+.rail :focus-visible{ outline-color:var(--tape); }
+
+.rail-head{
+  padding:clamp(20px,5vh,48px) 8vw 0;
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 28px;
+}
+.rail-head h2{ margin:0; font:400 clamp(30px,4.4vw,60px)/1.1 var(--display); }
+.rail-note{ margin:0; font-size:clamp(14px,1.3vw,17px); opacity:.9; text-wrap:balance; word-break:auto-phrase; }
+.rail-progress{
+  flex-basis:100%; height:4px; margin-top:14px;
+  max-width:min(420px,60vw);
+  background:rgba(244,247,245,.2);
+}
+.rail-progress i{ display:block; height:100%; background:var(--tape); transform-origin:left; transform:scaleX(0); }
+
+.rail-view{ flex:1; min-height:0; display:flex; align-items:center; }
+.rail-track{
+  display:flex; align-items:center; gap:7vw;
+  padding:0 8vw;
+  width:max-content;
+  will-change:transform;
+}
+
+.shelf{
+  display:flex; align-items:stretch; gap:clamp(14px,2vw,28px);
+  height:clamp(340px,56svh,500px);
+}
+.shelf-label{
+  margin:0; align-self:flex-start;
+  writing-mode:vertical-rl;
+  font:400 clamp(24px,3vw,40px)/1.2 var(--display);
+  letter-spacing:.06em;
+  padding-left:.35em;
+  border-left:6px solid var(--tape);
+}
+.shelf-label.is-empty{ border-left:6px dashed rgba(244,247,245,.4); opacity:.7; }
+
+/* 空きスロット（これから道具が入る場所） */
+.slot{
+  flex:none; width:clamp(240px,72vw,300px);
+  display:grid; place-items:center; padding:20px; text-align:center;
+  border:3px dashed rgba(244,247,245,.38);
+  border-radius:6px;
+  font-size:14px; line-height:1.7;
+  color:rgba(244,247,245,.75);
+}
+
+/* ツールのカード（ボードに掛かる） */
+.tool{
+  position:relative;
+  flex:none; width:clamp(240px,72vw,300px);
+  display:flex; flex-direction:column;
+  padding:34px 20px 20px;
+  background:var(--chalk); color:var(--ink);
+  border:3px solid var(--ink);
+  border-radius:6px;
+  box-shadow:7px 7px 0 rgba(0,0,0,.45);
+  transform-origin:50% 0;
+  opacity:0;
+}
+.tool::before{                      /* 掛けているピン */
+  content:""; position:absolute; top:-15px; left:50%;
+  width:22px; height:22px; margin-left:-11px;
+  background:var(--tape);
+  border:3px solid var(--ink); border-radius:50%;
+}
+.tool.hung{ animation:hang 1.05s cubic-bezier(.2,.8,.3,1) var(--d,0ms) both; }
+@keyframes hang{
+  0%  { opacity:0; transform:translateY(-90px) rotate(-12deg); }
+  35% { opacity:1; }
+  55% { transform:translateY(0) rotate(6deg); }
+  78% { transform:translateY(0) rotate(-3deg); }
+  100%{ opacity:1; transform:translateY(0) rotate(var(--tilt,0deg)); }
+}
+.tool-glyph{ width:72px; height:72px; margin-bottom:16px; }
+.tool-glyph svg{ display:block; width:100%; height:100%; }
+.tool h4{ margin:0 0 8px; font:400 clamp(22px,2.2vw,28px)/1.25 var(--display); }
+.tool p{ margin:0 0 14px; font-size:14.5px; line-height:1.7; word-break:auto-phrase; }
+.tags{ display:flex; flex-wrap:wrap; gap:6px; margin:auto 0 16px; padding:0; list-style:none; }
+.tags li{
+  padding:2px 10px;
+  font-size:12.5px; font-weight:700; white-space:nowrap;
+  border:2px solid var(--ink); border-radius:99px;
+}
+.tool .btn{ align-self:flex-start; box-shadow:4px 4px 0 var(--ink); transition:box-shadow .15s ease; }
+.tool .btn:hover{ transform:none; box-shadow:6px 6px 0 var(--ink); }
+.tool .btn:active{ transform:none; box-shadow:2px 2px 0 var(--ink); }
+.tool .btn::after{ content:""; position:absolute; inset:0; }  /* カード全体をクリック可能に */
+.tool .btn:focus-visible{ outline:3px solid var(--ink); outline-offset:3px; }
+.tool:focus-within{ outline:3px solid var(--tape); outline-offset:8px; }
+
+/* =========================================================================
+   4. むすび（文字がスクロールで組み上がる）
+   ========================================================================= */
+.closing{
+  padding:clamp(120px,24vh,260px) 6vw clamp(80px,14vh,160px);
+  background-image:radial-gradient(circle, rgba(16,40,42,.17) 2.5px, transparent 3px);
+  background-size:40px 40px;
+}
+.closing h2{
+  margin:0 0 .5em;
+  font:400 clamp(44px,10vw,150px)/1.1 var(--display);
+  letter-spacing:-.02em;
+}
+.closing .row{ display:block; white-space:nowrap; }
+.closing .ch{ display:inline-block; will-change:transform,opacity; }
+.closing p{ margin:0 0 28px; max-width:28em; font-size:clamp(16px,1.5vw,20px); font-weight:500; }
+
+.foot{
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px 24px;
+  padding:26px 6vw;
+  background:var(--ink); color:var(--chalk);
+  font-size:14px;
+}
+.foot a{ color:var(--tape); }
+.foot a:focus-visible{ outline-color:var(--tape); }
+
+/* =========================================================================
+   動きを減らす設定の人には、固定・横移動・演出をすべて外す
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  .hero{ height:auto; }
+  .hero .stage{ position:relative; min-height:100vh; }
+  .hero-sub{ opacity:1; }
+  .cue i{ animation:none; transform:none; }
+  .tape-track{ transform:none !important; }
+  .rail{ height:auto !important; }
+  .rail-stage{ position:relative; height:auto; min-height:100vh; overflow:visible; }
+  .rail-progress{ display:none; }
+  .rail-view{ overflow-x:auto; padding:32px 0 40px; }
+  .rail-track{ transform:none !important; }
+  .tool, .tool.hung{ opacity:1; animation:none; transform:rotate(var(--tilt,0deg)); }
+  .closing .ch{ opacity:1 !important; transform:none !important; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============ 1. ヒーロー ============ -->
+<header class="hero" id="top">
+  <div class="stage" id="heroStage">
+    <div class="topbar">
+      <span>あったらちょっと便利そうなツール達</span>
+      <a href="https://github.com/skyvesmir/a-little-convenience-goes-a-long-way">GitHub</a>
+    </div>
+
+    <h1 class="hero-title">
+      <span class="sr">あったら、ちょっと便利。</span>
+      <span class="ln" aria-hidden="true">あったら</span>
+      <span class="ln" aria-hidden="true">ちょっと</span>
+      <span class="ln" aria-hidden="true">便利。</span>
+    </h1>
+
+    <div class="hero-sub" id="heroSub">
+      <p>思いついた「あったらちょっと便利」を、小さなツールにして置いていく場所です。</p>
+      <a class="btn" href="#tools">ツールを見る</a>
+    </div>
+
+    <div class="cue" id="cue" aria-hidden="true"><i></i><span>スクロール</span></div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ 2. 養生テープ ============ -->
+  <div class="tapes" aria-hidden="true">
+    <div class="tape tape-a"><div class="tape-track" data-t="a" data-dir="-1"></div></div>
+    <div class="tape tape-b"><div class="tape-track" data-t="b" data-dir="1"></div></div>
+  </div>
+
+  <!-- ============ 3. 道具棚 ============ -->
+  <section class="rail" id="tools" aria-labelledby="railTitle">
+    <div class="rail-stage" id="railStage">
+      <div class="rail-head">
+        <h2 id="railTitle">いまある道具</h2>
+        <p class="rail-note" id="railNote"></p>
+        <div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div>
+      </div>
+      <div class="rail-view">
+        <div class="rail-track" id="track">
+          <noscript>
+            <div class="shelf">
+              <h3 class="shelf-label">絵関連のツール</h3>
+              <article class="tool" style="opacity:1">
+                <h4>ドット絵メーカー</h4>
+                <p>画像を入れて好みを少し調整するだけで、ゲーム用のドット絵に変換します。</p>
+                <a class="btn" href="絵関連のツール/ドット絵メーカー.html">開く</a>
+              </article>
+            </div>
+          </noscript>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. むすび ============ -->
+  <section class="closing" id="closing">
+    <h2 id="closingTitle">
+      <span class="sr">次は、何を置こう。</span>
+      <span class="row" aria-hidden="true" data-chars="次は、"></span>
+      <span class="row" aria-hidden="true" data-chars="何を置こう。"></span>
+    </h2>
+    <p>ツールは必要に応じて、このページに足していきます。</p>
+    <a class="btn" href="https://github.com/skyvesmir/a-little-convenience-goes-a-long-way">GitHubで見る</a>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>あったらちょっと便利そうなツール達。</span>
+  <a href="#top">いちばん上へ</a>
+</footer>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================================
+   ツール一覧
+   ツールを増やすときは、ここにデータを足すだけです。
+
+   ・棚を増やす        : SHELVES に { name, tools:[...] } を1つ足す
+   ・ツールを増やす    : その棚の tools に1件足す
+       title … ツール名
+       text  … 説明（60文字前後）
+       tags  … 小さなラベル（任意）
+       href  … HTMLファイルへの相対パス（日本語のままでOK）
+       glyph … ドット絵アイコン（任意）。a=青緑 b=黄 c=濃色 .=透明
+   ========================================================================= */
+const SHELVES = [
+  {
+    name: '絵関連のツール',
+    tools: [
+      {
+        title: 'ドット絵メーカー',
+        text: '画像を入れて好みを少し調整するだけで、ゲーム用のドット絵に変換します。複数枚の一括変換にも対応。',
+        tags: ['画像変換', 'PNG / JPEG / WebP'],
+        href: '絵関連のツール/ドット絵メーカー.html',
+        glyph: [
+          '..........',
+          '.......bb.',
+          '.......bb.',
+          '..a.......',
+          '.aaa...a..',
+          'aaaaa.aaa.',
+          'aaaaaaaaaa',
+          'cccccccccc'
+        ]
+      }
+    ]
+  }
+];
+
+const MIN_SLOTS = 3;   // 1つの棚に、最低でも並べる枠の数（足りない分は空き枠になる）
+
+/* ---------- 小さな道具 ---------- */
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease  = t => 1 - Math.pow(1 - t, 3);
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+
+function glyphSvg(rows) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const colors = { a: '#1d5457', b: '#f5c518', c: '#10282a' };
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${rows[0].length} ${rows.length}`);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  svg.setAttribute('aria-hidden', 'true');
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (!colors[ch]) return;
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', x); r.setAttribute('y', y);
+    r.setAttribute('width', 1.02); r.setAttribute('height', 1.02);
+    r.setAttribute('fill', colors[ch]);
+    svg.appendChild(r);
+  }));
+  return svg;
+}
+
+/* ---------- 棚を組み立てる ---------- */
+const track = $('#track');
+const TILTS = [-1.6, 1.2, -0.8, 1.8];
+let toolCount = 0;
+
+function buildTool(t, i) {
+  const card = el('article', 'tool');
+  card.style.setProperty('--tilt', `${TILTS[i % TILTS.length]}deg`);
+  card.style.setProperty('--d', `${(i % 3) * 90}ms`);
+  if (t.glyph) {
+    const g = el('div', 'tool-glyph');
+    g.appendChild(glyphSvg(t.glyph));
+    card.appendChild(g);
+  }
+  card.appendChild(el('h4', null, t.title));
+  card.appendChild(el('p', null, t.text));
+  if (t.tags && t.tags.length) {
+    const ul = el('ul', 'tags');
+    t.tags.forEach(tag => ul.appendChild(el('li', null, tag)));
+    card.appendChild(ul);
+  }
+  const a = el('a', 'btn', '開く');
+  a.href = encodeURI(t.href);
+  a.setAttribute('aria-label', `${t.title}を開く`);
+  card.appendChild(a);
+  toolCount += 1;
+  return card;
+}
+
+function buildShelf(shelf, withNote) {
+  const wrap = el('div', 'shelf');
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-label', shelf.name);
+  wrap.appendChild(el('h3', 'shelf-label' + (shelf.tools.length ? '' : ' is-empty'), shelf.name));
+  shelf.tools.forEach((t, i) => wrap.appendChild(buildTool(t, i)));
+  const empties = Math.max(0, MIN_SLOTS - shelf.tools.length);
+  for (let i = 0; i < empties; i++) {
+    const s = el('div', 'slot');
+    if (withNote && i === 0) s.textContent = '次の道具は、ここに入ります。';
+    s.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(s);
+  }
+  return wrap;
+}
+
+track.innerHTML = '';
+SHELVES.forEach(s => track.appendChild(buildShelf(s, false)));
+track.appendChild(buildShelf({ name: 'まだ空の棚', tools: [] }, true));
+
+$('#railNote').textContent =
+  `いま${toolCount}個、置いてあります。空いている場所は、これから埋めていきます。`;
+
+/* ---------- 養生テープの文字 ---------- */
+const TAPE_TEXT = {
+  a: 'あったらいいな、を形にする＋',
+  b: 'ちょっと便利なものを、必要に応じて足していきます＋'
+};
+$$('.tape-track').forEach(t => {
+  for (let i = 0; i < 14; i++) t.appendChild(el('span', null, TAPE_TEXT[t.dataset.t]));
+});
+
+/* ---------- むすびの文字を1文字ずつに分ける ---------- */
+const chars = [];
+$$('#closing [data-chars]').forEach(row => {
+  [...row.dataset.chars].forEach(c => {
+    const s = el('span', 'ch', c);
+    row.appendChild(s);
+    chars.push(s);
+  });
+});
+
+/* ---------- 動きを減らす設定なら、ここまでで終了 ---------- */
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+/* =========================================================================
+   スクロール連動
+   ========================================================================= */
+const hero      = $('#top');
+const heroStage = $('#heroStage');
+const lines     = $$('.hero-title .ln');
+const heroSub   = $('#heroSub');
+const cue       = $('#cue');
+const rail      = $('#tools');
+const railStage = $('#railStage');
+const railBar   = $('#railBar');
+const closingH  = $('#closingTitle');
+const cards     = $$('.tool', track);
+const tapes     = $$('.tape-track').map(e => ({ el: e, dir: Number(e.dataset.dir), seg: 1 }));
+
+const STARTS = [-9, 16, 30];    // 言葉の初期位置（vw）。スクロールで 0 に集まる
+const SKEWS  = [-8, 8, -8];     // 言葉の初期の傾き（度）
+
+let railDist = 0;
+let ticking = false;
+
+function measure() {
+  railDist = Math.max(0, track.offsetWidth - innerWidth);
+  rail.style.height = (innerHeight + railDist) + 'px';
+  tapes.forEach(t => { t.seg = Math.max(1, t.el.firstElementChild.offsetWidth); });
+}
+
+function update() {
+  ticking = false;
+  const vh = innerHeight, vw = innerWidth, y = scrollY;
+
+  /* ヒーロー：言葉が左に揃っていく */
+  const hr = hero.getBoundingClientRect();
+  const hp = clamp(-hr.top / Math.max(1, hr.height - vh));
+  const conv = ease(clamp(hp / 0.6));
+  lines.forEach((l, i) => {
+    l.style.transform =
+      `translate3d(${(1 - conv) * STARTS[i]}vw,0,0) skewX(${(1 - conv) * SKEWS[i]}deg)`;
+  });
+  const sr = ease(clamp((hp - 0.5) / 0.3));
+  heroSub.style.opacity = sr;
+  heroSub.style.transform = `translate3d(0,${(1 - sr) * 28}px,0)`;
+  cue.style.opacity = 1 - clamp(hp / 0.12);
+  heroStage.style.setProperty('--pegY', `${-hp * 180}px`);
+
+  /* 養生テープ：スクロール量だけ流れる（逆向きの2本） */
+  tapes.forEach(t => {
+    const off = (y * 0.5) % t.seg;
+    const x = t.dir < 0 ? -off : off - t.seg;
+    t.el.style.transform = `translate3d(${x}px,0,0)`;
+  });
+
+  /* 道具棚：縦スクロールを横移動に変える */
+  const rr = rail.getBoundingClientRect();
+  const rp = clamp(-rr.top / Math.max(1, rr.height - vh));
+  track.style.transform = `translate3d(${-rp * railDist}px,0,0)`;
+  railBar.style.transform = `scaleX(${rp})`;
+  railStage.style.setProperty('--bgx', `${-rp * railDist * 0.4}px`);
+
+  /* カードは、画面の右側に入ってきた順にボードへ掛かる */
+  const active = rr.top < vh * 0.65 && rr.bottom > 0;
+  cards.forEach(c => {
+    const hang = active && c.getBoundingClientRect().left < vw * 0.86;
+    if (hang !== c.classList.contains('hung')) c.classList.toggle('hung', hang);
+  });
+
+  /* むすび：1文字ずつ組み上がる */
+  const cr = closingH.getBoundingClientRect();
+  const cp = clamp((vh * 0.95 - cr.top) / (vh * 0.55));
+  const n = chars.length;
+  chars.forEach((c, i) => {
+    const t = ease(clamp((cp * (n + 5) - i) / 5));
+    c.style.opacity = t;
+    c.style.transform = `translate3d(0,${(1 - t) * 60}px,0) rotate(${(1 - t) * 8}deg)`;
+  });
+}
+
+function request() {
+  if (!ticking) { ticking = true; requestAnimationFrame(update); }
+}
+
+let resizeTimer;
+addEventListener('scroll', request, { passive: true });
+addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { measure(); request(); }, 120);
+});
+
+measure();
+update();
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => { measure(); update(); });
+}
+addEventListener('load', () => { measure(); update(); });
+
+})();
+</script>
+</body>
+</html>
