@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ドット絵メーカー — 画像をかんたんピクセルアート変換</title>
+<style>
+/* =========================================================================
+   デザイントークン（マジックナンバーを集約）
+   ========================================================================= */
+:root{
+  --color-bg:        #f4f6fb;
+  --color-card:      #ffffff;
+  --color-text:      #1f2733;
+  --color-text-sub:  #5b6675;
+  --color-border:    #e3e8f0;
+  --color-accent:    #5b6cff;
+  --color-accent-dk: #4453e6;
+  --color-accent-sf: #eef0ff;
+  --color-danger:    #ef5a6f;
+  --color-danger-sf: #fdecef;
+  --color-ok:        #2bb673;
+  --radius-lg:       20px;
+  --radius-md:       14px;
+  --radius-sm:       10px;
+  --shadow-soft:     0 6px 24px rgba(40,52,90,.08);
+  --shadow-hover:    0 10px 32px rgba(40,52,90,.14);
+  --space:           20px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
+          "Hiragino Sans", Meiryo, sans-serif;
+}
+
+/* =========================================================================
+   ベース
+   ========================================================================= */
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  font-family:var(--font);
+  background:var(--color-bg);
+  color:var(--color-text);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{ margin:0; font-weight:700; }
+button{ font-family:inherit; cursor:pointer; }
+small{ color:var(--color-text-sub); }
+
+/* ---- レイアウト ---- */
+.app-header{
+  text-align:center;
+  padding:32px 20px 8px;
+}
+.app-header h1{
+  font-size:clamp(24px,4vw,34px);
+  letter-spacing:.5px;
+}
+.app-header .lead{
+  margin:8px auto 0;
+  max-width:680px;
+  color:var(--color-text-sub);
+  font-size:15px;
+}
+.app-main{
+  display:grid;
+  grid-template-columns: 380px 1fr;
+  gap:var(--space);
+  max-width:1320px;
+  margin:24px auto 60px;
+  padding:0 20px;
+  align-items:start;
+}
+@media (max-width: 960px){
+  .app-main{ grid-template-columns:1fr; }
+  .settings-col{ position:static !important; }
+}
+
+/* ---- カード ---- */
+.card{
+  background:var(--color-card);
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-soft);
+  padding:22px;
+  margin-bottom:var(--space);
+}
+.card h2{
+  font-size:16px;
+  display:flex; align-items:center; gap:8px;
+  margin-bottom:4px;
+}
+.card .hint{
+  font-size:12.5px;
+  color:var(--color-text-sub);
+  margin:2px 0 16px;
+}
+.settings-col{ position:sticky; top:16px; }
+
+/* ---- ドロップゾーン ---- */
+.dropzone{
+  border:2px dashed var(--color-border);
+  border-radius:var(--radius-md);
+  background:#fafbff;
+  padding:28px 18px;
+  text-align:center;
+  transition:.18s ease;
+  cursor:pointer;
+}
+.dropzone:hover{ border-color:var(--color-accent); background:var(--color-accent-sf); }
+.dropzone.dragover{
+  border-color:var(--color-accent);
+  background:var(--color-accent-sf);
+  transform:scale(1.01);
+}
+.dropzone .dz-icon{ font-size:40px; line-height:1; }
+.dropzone .dz-title{ font-weight:700; margin-top:8px; }
+.dropzone .dz-sub{ font-size:12.5px; color:var(--color-text-sub); margin-top:4px; }
+
+/* ---- フォーム部品 ---- */
+.field{ margin-bottom:18px; }
+.field:last-child{ margin-bottom:0; }
+.field-head{
+  display:flex; justify-content:space-between; align-items:baseline;
+  margin-bottom:6px;
+}
+.field-head label{ font-weight:600; font-size:14px; }
+.field-val{
+  font-variant-numeric:tabular-nums;
+  font-weight:700; font-size:13px;
+  color:var(--color-accent);
+  background:var(--color-accent-sf);
+  border-radius:999px;
+  padding:2px 10px;
+}
+.field-desc{ font-size:11.5px; color:var(--color-text-sub); margin-top:5px; }
+
+input[type=range]{
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:6px; border-radius:999px;
+  background:linear-gradient(var(--color-border),var(--color-border));
+  outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none;
+  width:20px; height:20px; border-radius:50%;
+  background:var(--color-accent);
+  border:3px solid #fff;
+  box-shadow:0 2px 6px rgba(40,52,90,.25);
+  cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%;
+  background:var(--color-accent); border:3px solid #fff;
+  box-shadow:0 2px 6px rgba(40,52,90,.25); cursor:pointer;
+}
+
+.toggle-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 0;
+}
+.toggle-row .toggle-text{ flex:1; }
+.toggle-row .toggle-text b{ font-size:14px; }
+.toggle-row .toggle-text span{ display:block; font-size:11.5px; color:var(--color-text-sub); }
+/* スイッチ */
+.switch{ position:relative; width:46px; height:26px; flex:none; }
+.switch input{ opacity:0; width:0; height:0; }
+.switch .slider{
+  position:absolute; inset:0; background:var(--color-border);
+  border-radius:999px; transition:.2s;
+}
+.switch .slider:before{
+  content:""; position:absolute; height:20px; width:20px; left:3px; top:3px;
+  background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.switch input:checked + .slider{ background:var(--color-accent); }
+.switch input:checked + .slider:before{ transform:translateX(20px); }
+
+/* ---- ボタン ---- */
+.btn{
+  border:1px solid var(--color-border);
+  background:#fff; color:var(--color-text);
+  border-radius:var(--radius-sm);
+  padding:10px 14px; font-size:13.5px; font-weight:600;
+  transition:.15s; display:inline-flex; align-items:center; gap:7px; justify-content:center;
+}
+.btn:hover{ border-color:var(--color-accent); color:var(--color-accent); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn-primary{ background:var(--color-accent); border-color:var(--color-accent); color:#fff; }
+.btn-primary:hover{ background:var(--color-accent-dk); border-color:var(--color-accent-dk); color:#fff; }
+.btn-danger{ color:var(--color-danger); }
+.btn-danger:hover{ border-color:var(--color-danger); color:var(--color-danger); background:var(--color-danger-sf); }
+.btn-block{ width:100%; }
+.btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+.btn-row .btn{ flex:1; min-width:120px; }
+
+/* ---- セグメント切替 ---- */
+.seg{
+  display:inline-flex; background:#f0f2f8; border-radius:999px; padding:4px; gap:4px;
+  flex-wrap:wrap;
+}
+.seg button{
+  border:none; background:transparent; border-radius:999px;
+  padding:6px 14px; font-size:13px; font-weight:600; color:var(--color-text-sub);
+}
+.seg button.active{ background:#fff; color:var(--color-accent); box-shadow:var(--shadow-soft); }
+
+/* ---- プレビュー比較 ---- */
+.preview-toolbar{
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  flex-wrap:wrap; margin-bottom:16px;
+}
+.preview-toolbar .group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.preview-toolbar .group-label{ font-size:12px; color:var(--color-text-sub); font-weight:600; }
+
+.compare{
+  display:grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap:14px; align-items:center;
+}
+@media (max-width:680px){
+  .compare{ grid-template-columns:1fr; }
+  .compare .arrow{ transform:rotate(90deg); justify-self:center; }
+}
+.canvas-pane{
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-md);
+  overflow:auto;
+  max-height:560px;
+  /* 背景パターンはJSで切替 */
+  display:flex; align-items:center; justify-content:center;
+  min-height:220px;
+}
+.canvas-pane .pane-cap{
+  position:sticky; top:0; left:0;
+}
+.pane-wrap{ text-align:center; }
+.pane-title{
+  font-size:12px; font-weight:700; color:var(--color-text-sub);
+  text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;
+}
+.canvas-pane canvas{
+  display:block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
+  margin:auto;
+}
+.arrow{ font-size:30px; color:var(--color-accent); justify-self:center; }
+
+/* 背景パターン */
+.bg-white{ background:#ffffff; }
+.bg-black{ background:#121212; }
+.bg-checker{
+  background-color:#eaeef5;
+  background-image:
+    linear-gradient(45deg,#cfd6e4 25%,transparent 25%),
+    linear-gradient(-45deg,#cfd6e4 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#cfd6e4 75%),
+    linear-gradient(-45deg,transparent 75%,#cfd6e4 75%);
+  background-size:20px 20px;
+  background-position:0 0,0 10px,10px -10px,-10px 0;
+}
+
+/* ---- 一括リスト ---- */
+.batch-bar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.progress{
+  flex:1; min-width:180px;
+  height:10px; background:#eef0f6; border-radius:999px; overflow:hidden;
+}
+.progress > span{
+  display:block; height:100%; width:0%;
+  background:linear-gradient(90deg,var(--color-accent),#7d8bff);
+  transition:width .12s linear;
+}
+.progress-text{ font-size:12.5px; font-weight:600; color:var(--color-text-sub); min-width:120px; }
+
+.thumb-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:14px;
+}
+.thumb{
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-md);
+  overflow:hidden; background:#fff;
+  transition:.15s; position:relative;
+}
+.thumb:hover{ box-shadow:var(--shadow-hover); }
+.thumb.selected{ border-color:var(--color-accent); box-shadow:0 0 0 2px var(--color-accent-sf); }
+.thumb .th-imgs{
+  display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--color-border);
+}
+.thumb .th-imgs .th-cell{
+  aspect-ratio:1/1; background:#f6f8fc;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.thumb .th-imgs canvas, .thumb .th-imgs img{
+  max-width:100%; max-height:100%;
+  image-rendering:pixelated; image-rendering:crisp-edges;
+}
+.thumb .th-meta{ padding:8px 10px; }
+.thumb .th-name{
+  font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.thumb .th-info{ font-size:10.5px; color:var(--color-text-sub); }
+.thumb .th-actions{
+  display:flex; gap:6px; padding:0 10px 10px;
+}
+.thumb .th-actions button{
+  flex:1; font-size:11px; padding:6px 4px; border-radius:8px;
+  border:1px solid var(--color-border); background:#fff; font-weight:600;
+}
+.thumb .th-actions .th-del{ color:var(--color-danger); }
+.thumb .th-status{
+  position:absolute; top:8px; right:8px;
+  font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+  background:rgba(255,255,255,.9); border:1px solid var(--color-border);
+}
+.thumb .th-status.done{ color:var(--color-ok); border-color:#bfe9d4; }
+.thumb .th-status.processing{ color:var(--color-accent); }
+.thumb .th-status.pending{ color:var(--color-text-sub); }
+
+.empty-state{
+  text-align:center; color:var(--color-text-sub); padding:40px 10px; font-size:14px;
+}
+
+/* ---- トースト ---- */
+#toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:#1f2733; color:#fff; padding:12px 20px; border-radius:999px;
+  font-size:13.5px; font-weight:600; opacity:0; pointer-events:none;
+  transition:.25s; z-index:9999; box-shadow:var(--shadow-hover);
+}
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.error{ background:var(--color-danger); }
+#toast.ok{ background:var(--color-ok); }
+
+.section-sep{ height:1px; background:var(--color-border); margin:18px 0; border:0; }
+.collapse-head{
+  display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+  user-select:none;
+}
+.collapse-head .chev{ transition:.2s; color:var(--color-text-sub); }
+.collapse-head.collapsed .chev{ transform:rotate(-90deg); }
+.collapse-body{ overflow:hidden; }
+.collapse-body.collapsed{ display:none; }
+
+.app-footer{
+  text-align:center; color:var(--color-text-sub); font-size:12px; padding:10px 20px 40px;
+}
+.kbd{ background:#eef0f6; border-radius:6px; padding:1px 6px; font-size:11px; font-weight:600; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>🎮 ドット絵メーカー</h1>
+  <p class="lead">画像を入れて、好みを少し調整するだけ。ゲーム用のドット絵（ピクセルアート）にすぐ変換できます。複数画像の一括変換にも対応。</p>
+</header>
+
+<main class="app-main">
+
+  <!-- ============================ 左：設定 ============================ -->
+  <div class="settings-col">
+
+    <!-- 画像読み込み -->
+    <section class="card">
+      <h2>🖼️ 画像を追加</h2>
+      <p class="hint">PNG / JPEG / WebP に対応。複数まとめてドロップできます。</p>
+      <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="画像を追加">
+        <div class="dz-icon">📥</div>
+        <div class="dz-title">ここにドラッグ＆ドロップ</div>
+        <div class="dz-sub">またはクリックしてファイルを選択</div>
+      </div>
+      <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+      <div class="btn-row" style="margin-top:12px;">
+        <button id="btnClearAll" class="btn btn-danger btn-block" disabled>🗑️ すべて削除</button>
+      </div>
+    </section>
+
+    <!-- 基本設定 -->
+    <section class="card">
+      <h2>🎛️ 基本設定</h2>
+      <p class="hint">スライダーを動かすと、すぐにプレビューへ反映されます。</p>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="rngPixel">荒さ（ピクセルの大きさ）</label>
+          <span class="field-val" id="valPixel">8</span>
+        </div>
+        <input type="range" id="rngPixel" min="1" max="64" step="1" value="8">
+        <div class="field-desc">大きいほどドットが粗く、レトロな見た目になります。</div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="rngColors">色の数</label>
+          <span class="field-val" id="valColors">16</span>
+        </div>
+        <input type="range" id="rngColors" min="2" max="256" step="1" value="16">
+        <div class="field-desc">色数を減らすほどレトロ感（ゲーム機っぽさ）が増します。</div>
+      </div>
+
+      <hr class="section-sep">
+
+      <div class="toggle-row">
+        <div class="toggle-text">
+          <b>ディザリング</b>
+          <span>少ない色でもなめらかなグラデに見せる（Floyd–Steinberg方式）</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="chkDither"><span class="slider"></span></label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-text">
+          <b>輪郭を保つ</b>
+          <span>エッジが潰れすぎないように補正します</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="chkEdge" checked><span class="slider"></span></label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-text">
+          <b>ノイズ除去</b>
+          <span>ポツンと出る小さなゴミ色を減らします</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="chkDenoise"><span class="slider"></span></label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-text">
+          <b>透明を保つ</b>
+          <span>透明部分（アルファ）をできるだけ維持します</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="chkAlpha" checked><span class="slider"></span></label>
+      </div>
+    </section>
+
+    <!-- 仕上げ調整（折りたたみ） -->
+    <section class="card">
+      <div class="collapse-head" id="advHead">
+        <h2>✨ 仕上げ調整</h2>
+        <span class="chev">▼</span>
+      </div>
+      <p class="hint">必要なときだけ。困ったら触らなくてOK。</p>
+      <div class="collapse-body" id="advBody">
+
+        <div class="field">
+          <div class="field-head"><label for="rngSharp">シャープネス</label><span class="field-val" id="valSharp">20</span></div>
+          <input type="range" id="rngSharp" min="0" max="100" step="1" value="20">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="rngSat">彩度</label><span class="field-val" id="valSat">100%</span></div>
+          <input type="range" id="rngSat" min="0" max="200" step="1" value="100">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="rngBright">明るさ</label><span class="field-val" id="valBright">100%</span></div>
+          <input type="range" id="rngBright" min="50" max="150" step="1" value="100">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="rngContrast">コントラスト</label><span class="field-val" id="valContrast">100%</span></div>
+          <input type="range" id="rngContrast" min="50" max="150" step="1" value="100">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="rngGamma">ガンマ補正</label><span class="field-val" id="valGamma">1.00</span></div>
+          <input type="range" id="rngGamma" min="0.5" max="2.0" step="0.01" value="1.0">
+        </div>
+      </div>
+    </section>
+
+    <!-- リセット -->
+    <section class="card">
+      <button id="btnReset" class="btn btn-block">↺ すべての設定を初期状態に戻す</button>
+    </section>
+  </div>
+
+  <!-- ============================ 右：プレビュー ============================ -->
+  <div class="preview-col">
+
+    <!-- 比較プレビュー -->
+    <section class="card">
+      <div class="preview-toolbar">
+        <div class="group">
+          <span class="group-label">表示中:</span>
+          <span id="activeName" style="font-weight:700;font-size:13.5px;">— 画像なし —</span>
+        </div>
+        <div class="group">
+          <span class="group-label">ズーム</span>
+          <div class="seg" id="zoomSeg">
+            <button data-zoom="1" class="active">100%</button>
+            <button data-zoom="2">200%</button>
+            <button data-zoom="4">400%</button>
+            <button data-zoom="8">800%</button>
+          </div>
+        </div>
+        <div class="group">
+          <span class="group-label">背景</span>
+          <div class="seg" id="bgSeg">
+            <button data-bg="white" class="active">白</button>
+            <button data-bg="checker">市松</button>
+            <button data-bg="black">黒</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare">
+        <div class="pane-wrap">
+          <div class="pane-title">元画像</div>
+          <div class="canvas-pane bg-white" id="paneSrc">
+            <div class="empty-state" id="srcEmpty">画像を追加するとここに表示されます</div>
+            <canvas id="canvasSrc" hidden></canvas>
+          </div>
+        </div>
+        <div class="arrow">➡️</div>
+        <div class="pane-wrap">
+          <div class="pane-title">変換後（ドット絵）</div>
+          <div class="canvas-pane bg-white" id="paneOut">
+            <div class="empty-state" id="outEmpty">—</div>
+            <canvas id="canvasOut" hidden></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="btnSavePng" class="btn btn-primary" disabled>💾 PNGで保存</button>
+        <button id="btnCopy" class="btn" disabled>📋 コピー</button>
+      </div>
+    </section>
+
+    <!-- 一括変換 -->
+    <section class="card">
+      <h2>📦 一括変換</h2>
+      <p class="hint">追加したすべての画像へ、現在の設定をまとめて適用します。枚数の上限はありません（ブラウザの能力次第）。</p>
+
+      <div class="batch-bar">
+        <button id="btnConvertAll" class="btn btn-primary" disabled>⚡ 全部まとめて変換</button>
+        <button id="btnDownloadZip" class="btn" disabled>📁 ZIPで一括保存</button>
+        <div class="progress"><span id="progFill"></span></div>
+        <div class="progress-text" id="progText">0 / 0 枚</div>
+      </div>
+
+      <div id="thumbGrid" class="thumb-grid">
+        <div class="empty-state" id="gridEmpty">まだ画像がありません。左の「画像を追加」から取り込んでください。</div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="app-footer">
+  ブラウザだけで動作 / 画像はあなたの端末内でのみ処理され、どこにもアップロードされません。<br>
+  ヒント: ドロップゾーンへ複数ファイルをまとめてドラッグできます。
+</footer>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   ドット絵メーカー  — フルロジック
+   構成:
+     - 定数 / 状態
+     - ユーティリティ（トースト等）
+     - 設定（UI ⇄ state）
+     - 画像読み込み（D&D / ファイル選択 / 複数 / 追加 / 削除）
+     - 画像処理エンジン（前処理→縮小→量子化(Median Cut)→ディザ→NN拡大）
+     - プレビュー描画 / 比較 / ズーム / 背景
+     - 一括処理（非同期バッチ + 進捗 + メモリ解放）
+     - 保存（個別PNG / ZIP一括） / コピー / リセット
+     - 内蔵ZIP（無圧縮Store + CRC32）
+   ========================================================================= */
+
+/* ---------------------------- 定数 ---------------------------- */
+const CONFIG = Object.freeze({
+  PIXEL_MIN: 1, PIXEL_MAX: 64, PIXEL_DEFAULT: 8,
+  COLOR_MIN: 2, COLOR_MAX: 256, COLOR_DEFAULT: 16,
+  SHARP_DEFAULT: 20, SAT_DEFAULT: 100, BRIGHT_DEFAULT: 100,
+  CONTRAST_DEFAULT: 100, GAMMA_DEFAULT: 1.0,
+  ACCEPTED_TYPES: ["image/png", "image/jpeg", "image/webp"],
+  LARGE_IMAGE_PIXELS: 16_000_000,          // これ以上の画素数は警告
+  MAX_SAFE_DIMENSION: 8000,                // 1辺がこれを超える画像は警告
+  THUMB_PREVIEW_MAX: 256,                  // サムネイル用元画像の最大表示Canvas辺
+  BATCH_TIME_BUDGET_MS: 16,                // 1フレームあたりの処理上限時間
+  ALPHA_THRESHOLD: 128,                    // アルファ保持のしきい値
+  DENOISE_MIN_CLUSTER: 2                   // ノイズ除去で残す最小近傍数
+});
+
+/* ---------------------------- 状態 ---------------------------- */
+const state = {
+  settings: getDefaultSettings(),
+  images: [],          // { id, name, srcCanvas, outCanvas, status, w, h }
+  activeId: null,
+  zoom: 1,
+  bg: "white",
+  idSeq: 0,
+  batchRunning: false,
+  liveTimer: null      // ライブプレビューのフレーム予約
+};
+
+function getDefaultSettings(){
+  return {
+    pixel: CONFIG.PIXEL_DEFAULT,
+    colors: CONFIG.COLOR_DEFAULT,
+    dither: false,
+    edge: true,
+    denoise: false,
+    alpha: true,
+    sharp: CONFIG.SHARP_DEFAULT,
+    sat: CONFIG.SAT_DEFAULT,
+    bright: CONFIG.BRIGHT_DEFAULT,
+    contrast: CONFIG.CONTRAST_DEFAULT,
+    gamma: CONFIG.GAMMA_DEFAULT
+  };
+}
+
+/* ---------------------------- DOM参照 ---------------------------- */
+const $ = (sel) => document.querySelector(sel);
+const el = {
+  dropzone: $("#dropzone"),
+  fileInput: $("#fileInput"),
+  btnClearAll: $("#btnClearAll"),
+
+  rngPixel: $("#rngPixel"), valPixel: $("#valPixel"),
+  rngColors: $("#rngColors"), valColors: $("#valColors"),
+  chkDither: $("#chkDither"), chkEdge: $("#chkEdge"),
+  chkDenoise: $("#chkDenoise"), chkAlpha: $("#chkAlpha"),
+  rngSharp: $("#rngSharp"), valSharp: $("#valSharp"),
+  rngSat: $("#rngSat"), valSat: $("#valSat"),
+  rngBright: $("#rngBright"), valBright: $("#valBright"),
+  rngContrast: $("#rngContrast"), valContrast: $("#valContrast"),
+  rngGamma: $("#rngGamma"), valGamma: $("#valGamma"),
+  advHead: $("#advHead"), advBody: $("#advBody"),
+  btnReset: $("#btnReset"),
+
+  activeName: $("#activeName"),
+  zoomSeg: $("#zoomSeg"), bgSeg: $("#bgSeg"),
+  paneSrc: $("#paneSrc"), paneOut: $("#paneOut"),
+  srcEmpty: $("#srcEmpty"), outEmpty: $("#outEmpty"),
+  canvasSrc: $("#canvasSrc"), canvasOut: $("#canvasOut"),
+  btnSavePng: $("#btnSavePng"), btnCopy: $("#btnCopy"),
+
+  btnConvertAll: $("#btnConvertAll"),
+  btnDownloadZip: $("#btnDownloadZip"),
+  progFill: $("#progFill"), progText: $("#progText"),
+  thumbGrid: $("#thumbGrid"), gridEmpty: $("#gridEmpty"),
+
+  toast: $("#toast")
+};
+
+/* ============================================================
+   ユーティリティ
+   ============================================================ */
+let toastTimer = null;
+function toast(msg, type=""){
+  el.toast.textContent = msg;
+  el.toast.className = "show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.toast.className = type, 2600);
+}
+const clamp = (v,min,max)=> v<min?min : v>max?max : v;
+function nextId(){ return ++state.idSeq; }
+
+/** 元名から "_pixel" 付きの保存名を生成 */
+function makeOutName(name){
+  const dot = name.lastIndexOf(".");
+  const base = dot === -1 ? name : name.slice(0, dot);
+  return base + "_pixel.png";
+}
+
+/* ============================================================
+   設定 UI のバインド（リアルタイム反映）
+   ============================================================ */
+function bindSettings(){
+  // 数値スライダー: input イベントで即時反映（ライブプレビュー）
+  const numBinds = [
+    [el.rngPixel,  "pixel",   v=> el.valPixel.textContent = v],
+    [el.rngColors, "colors",  v=> el.valColors.textContent = v],
+    [el.rngSharp,  "sharp",   v=> el.valSharp.textContent = v],
+    [el.rngSat,    "sat",     v=> el.valSat.textContent = v+"%"],
+    [el.rngBright, "bright",  v=> el.valBright.textContent = v+"%"],
+    [el.rngContrast,"contrast",v=> el.valContrast.textContent = v+"%"],
+    [el.rngGamma,  "gamma",   v=> el.valGamma.textContent = Number(v).toFixed(2)],
+  ];
+  numBinds.forEach(([input,key,render])=>{
+    input.addEventListener("input", ()=>{
+      const v = (key==="gamma") ? parseFloat(input.value) : parseInt(input.value,10);
+      state.settings[key] = v;
+      render(input.value);
+      scheduleLivePreview();
+    });
+  });
+
+  // チェックボックス
+  const chkBinds = [
+    [el.chkDither, "dither"], [el.chkEdge,"edge"],
+    [el.chkDenoise,"denoise"], [el.chkAlpha,"alpha"]
+  ];
+  chkBinds.forEach(([input,key])=>{
+    input.addEventListener("change", ()=>{
+      state.settings[key] = input.checked;
+      scheduleLivePreview();
+    });
+  });
+
+  // 折りたたみ
+  el.advHead.addEventListener("click", ()=>{
+    el.advHead.classList.toggle("collapsed");
+    el.advBody.classList.toggle("collapsed");
+  });
+}
+
+/** UI を state に同期（リセット時に使用） */
+function syncSettingsToUI(){
+  const s = state.settings;
+  el.rngPixel.value = s.pixel;   el.valPixel.textContent = s.pixel;
+  el.rngColors.value = s.colors; el.valColors.textContent = s.colors;
+  el.chkDither.checked = s.dither;
+  el.chkEdge.checked = s.edge;
+  el.chkDenoise.checked = s.denoise;
+  el.chkAlpha.checked = s.alpha;
+  el.rngSharp.value = s.sharp;     el.valSharp.textContent = s.sharp;
+  el.rngSat.value = s.sat;         el.valSat.textContent = s.sat+"%";
+  el.rngBright.value = s.bright;   el.valBright.textContent = s.bright+"%";
+  el.rngContrast.value = s.contrast; el.valContrast.textContent = s.contrast+"%";
+  el.rngGamma.value = s.gamma;     el.valGamma.textContent = Number(s.gamma).toFixed(2);
+}
+
+/* ============================================================
+   画像読み込み
+   ============================================================ */
+function bindLoading(){
+  // クリックでファイル選択
+  el.dropzone.addEventListener("click", ()=> el.fileInput.click());
+  el.dropzone.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter" || e.key===" "){ e.preventDefault(); el.fileInput.click(); }
+  });
+  el.fileInput.addEventListener("change", (e)=>{
+    handleFiles(e.target.files);
+    el.fileInput.value = ""; // 同じファイルを再選択できるように
+  });
+
+  // ドラッグ＆ドロップ
+  ["dragenter","dragover"].forEach(ev=>{
+    el.dropzone.addEventListener(ev, (e)=>{ e.preventDefault(); el.dropzone.classList.add("dragover"); });
+  });
+  ["dragleave","drop"].forEach(ev=>{
+    el.dropzone.addEventListener(ev, (e)=>{ e.preventDefault(); el.dropzone.classList.remove("dragover"); });
+  });
+  el.dropzone.addEventListener("drop", (e)=>{
+    const dt = e.dataTransfer;
+    if(dt && dt.files && dt.files.length) handleFiles(dt.files);
+  });
+  // ページ全体へのドロップでファイルが開かれてしまうのを防止
+  ["dragover","drop"].forEach(ev=> document.addEventListener(ev, (e)=> e.preventDefault()));
+}
+
+/** 複数ファイルを順次読み込み（非ブロッキング） */
+async function handleFiles(fileList){
+  const files = Array.from(fileList);
+  let added = 0, rejected = 0;
+  for(const file of files){
+    if(!CONFIG.ACCEPTED_TYPES.includes(file.type)){ rejected++; continue; }
+    try{
+      await addImageFromFile(file);
+      added++;
+    }catch(err){
+      console.error("読み込み失敗:", file.name, err);
+      rejected++;
+    }
+    // UIを固めないために1枚ごとに描画機会を譲る
+    await nextFrame();
+  }
+  if(added) toast(`${added}枚を追加しました`, "ok");
+  if(rejected) toast(`${rejected}件は画像でないか読み込めませんでした`, "error");
+  refreshAfterListChange();
+}
+
+/** File → Image → Canvas へ展開して state に登録 */
+function addImageFromFile(file){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        // 巨大画像の警告（処理は試みるが注意喚起）
+        if(img.width > CONFIG.MAX_SAFE_DIMENSION || img.height > CONFIG.MAX_SAFE_DIMENSION
+           || img.width*img.height > CONFIG.LARGE_IMAGE_PIXELS){
+          toast(`「${file.name}」は非常に大きい画像です。処理に時間がかかる場合があります`, "error");
+        }
+        const srcCanvas = document.createElement("canvas");
+        srcCanvas.width = img.width;
+        srcCanvas.height = img.height;
+        const ctx = srcCanvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+
+        state.images.push({
+          id: nextId(),
+          name: file.name,
+          srcCanvas,
+          outCanvas: null,
+          status: "pending",   // pending | processing | done
+          w: img.width,
+          h: img.height
+        });
+        resolve();
+      }catch(err){ reject(err); }
+      finally{ URL.revokeObjectURL(url); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("decode error")); };
+    img.src = url;
+  });
+}
+
+/** 個別削除（メモリ解放込み） */
+function removeImage(id){
+  const idx = state.images.findIndex(i=>i.id===id);
+  if(idx===-1) return;
+  releaseImage(state.images[idx]);
+  state.images.splice(idx,1);
+  if(state.activeId===id){
+    state.activeId = state.images.length ? state.images[0].id : null;
+  }
+  refreshAfterListChange();
+}
+
+/** 全削除 */
+function clearAllImages(){
+  if(!state.images.length) return;
+  state.images.forEach(releaseImage);
+  state.images = [];
+  state.activeId = null;
+  refreshAfterListChange();
+  toast("すべて削除しました");
+}
+
+/** Canvas参照を破棄してGCを助ける（メモリリーク対策） */
+function releaseImage(item){
+  for(const key of ["srcCanvas","outCanvas"]){
+    const c = item[key];
+    if(c){ c.width = 0; c.height = 0; item[key] = null; }
+  }
+}
+
+/* ============================================================
+   画像処理エンジン
+   入力: srcCanvas（原寸）
+   出力: 変換後 outCanvas（NN拡大で元寸に戻したドット絵）
+   ============================================================ */
+
+/**
+ * メイン変換: 1枚の元Canvasを処理してドット絵Canvasを返す
+ * 工程: 前処理(色調補正/シャープ) → 縮小 → ノイズ除去 → 色量子化(+ディザ) → エッジ保持 → NN再拡大
+ */
+function convertImage(srcCanvas, settings){
+  const s = settings;
+  const sw = srcCanvas.width, sh = srcCanvas.height;
+
+  // --- 縮小後サイズ（ピクセルの大きさ = 1ドットあたり何px相当か）---
+  const block = clamp(s.pixel, CONFIG.PIXEL_MIN, CONFIG.PIXEL_MAX);
+  const dw = Math.max(1, Math.round(sw / block));
+  const dh = Math.max(1, Math.round(sh / block));
+
+  // --- 1) 前処理を元解像度のコピーに対して適用 ---
+  const pre = document.createElement("canvas");
+  pre.width = sw; pre.height = sh;
+  const preCtx = pre.getContext("2d", { willReadFrequently:true });
+  preCtx.drawImage(srcCanvas, 0, 0);
+  let preData = preCtx.getImageData(0,0,sw,sh);
+  applyColorAdjust(preData, s);       // 明るさ/コントラスト/ガンマ/彩度
+  if(s.sharp > 0) preData = applySharpen(preData, s.sharp/100);
+  preCtx.putImageData(preData, 0, 0);
+
+  // --- 2) 高品質縮小（エリア平均: ブラウザの線形補間を活用）---
+  const small = document.createElement("canvas");
+  small.width = dw; small.height = dh;
+  const smCtx = small.getContext("2d", { willReadFrequently:true });
+  smCtx.imageSmoothingEnabled = true;
+  smCtx.imageSmoothingQuality = "high";
+  smCtx.drawImage(pre, 0, 0, sw, sh, 0, 0, dw, dh);
+  let smData = smCtx.getImageData(0,0,dw,dh);
+
+  // アルファ保持: 元の透明マスクを縮小して保持
+  const alphaMask = s.alpha ? buildAlphaMask(srcCanvas, dw, dh) : null;
+
+  // --- 3) ノイズ除去（孤立色の平滑化, 任意）---
+  if(s.denoise) smData = denoise(smData);
+
+  // --- 4) エッジ保持（軽いアンシャープで輪郭を立てる, 任意）---
+  if(s.edge) smData = applyEdgePreserve(smData);
+
+  // --- 5) 色量子化（Median Cut）+ 任意でディザリング ---
+  const palette = buildPalette(smData, clamp(s.colors, CONFIG.COLOR_MIN, CONFIG.COLOR_MAX), alphaMask);
+  if(s.dither){
+    floydSteinberg(smData, palette, alphaMask);
+  }else{
+    quantizeNearest(smData, palette, alphaMask);
+  }
+
+  // アルファ復元
+  if(alphaMask){
+    for(let i=0;i<alphaMask.length;i++){
+      smData.data[i*4+3] = alphaMask[i] ? smData.data[i*4+3] : 0;
+    }
+  }
+  smCtx.putImageData(smData, 0, 0);
+
+  // --- 6) Nearest Neighbor で元サイズへ再拡大（ぼやけない）---
+  const out = document.createElement("canvas");
+  out.width = sw; out.height = sh;
+  const outCtx = out.getContext("2d");
+  outCtx.imageSmoothingEnabled = false; // ニアレストネイバー
+  outCtx.drawImage(small, 0, 0, dw, dh, 0, 0, sw, sh);
+
+  // 中間Canvas解放
+  pre.width=0; pre.height=0;
+  small.width=0; small.height=0;
+  return out;
+}
+
+/** 明るさ・コントラスト・ガンマ・彩度をピクセルへ適用 */
+function applyColorAdjust(imageData, s){
+  const d = imageData.data;
+  const bright = s.bright/100;          // 0.5〜1.5
+  const contrast = s.contrast/100;      // 0.5〜1.5
+  const gamma = s.gamma;                // 0.5〜2.0
+  const sat = s.sat/100;                // 0〜2.0
+  const invGamma = 1/gamma;
+  // コントラスト係数
+  const cFactor = contrast;
+  for(let i=0;i<d.length;i+=4){
+    let r=d[i], g=d[i+1], b=d[i+2];
+    // 明るさ
+    r*=bright; g*=bright; b*=bright;
+    // コントラスト（中心128）
+    r = (r-128)*cFactor+128;
+    g = (g-128)*cFactor+128;
+    b = (b-128)*cFactor+128;
+    // ガンマ
+    r = 255*Math.pow(clamp(r,0,255)/255, invGamma);
+    g = 255*Math.pow(clamp(g,0,255)/255, invGamma);
+    b = 255*Math.pow(clamp(b,0,255)/255, invGamma);
+    // 彩度（輝度との混合）
+    if(sat !== 1){
+      const lum = 0.299*r + 0.587*g + 0.114*b;
+      r = lum + (r-lum)*sat;
+      g = lum + (g-lum)*sat;
+      b = lum + (b-lum)*sat;
+    }
+    d[i]   = clamp(r,0,255);
+    d[i+1] = clamp(g,0,255);
+    d[i+2] = clamp(b,0,255);
+  }
+}
+
+/** アンシャープマスク的なシャープ処理（強度 0〜1）。新しいImageDataを返す */
+function applySharpen(imageData, amount){
+  const w=imageData.width, h=imageData.height;
+  const src=imageData.data;
+  const out=new Uint8ClampedArray(src);
+  // 3x3 シャープカーネル（中心強調）。amountで強度調整
+  const k = amount;
+  for(let y=1;y<h-1;y++){
+    for(let x=1;x<w-1;x++){
+      const idx=(y*w+x)*4;
+      for(let c=0;c<3;c++){
+        const center = src[idx+c];
+        const sum =
+          src[((y-1)*w+x)*4+c] + src[((y+1)*w+x)*4+c] +
+          src[(y*w+(x-1))*4+c] + src[(y*w+(x+1))*4+c];
+        // center*(1+4k) - sum*k
+        const v = center*(1+4*k) - sum*k;
+        out[idx+c]=clamp(v,0,255);
+      }
+    }
+  }
+  return new ImageData(out, w, h);
+}
+
+/** 軽いエッジ保持（弱アンシャープ）。縮小後の輪郭が潰れすぎないように */
+function applyEdgePreserve(imageData){
+  return applySharpen(imageData, 0.35);
+}
+
+/** ノイズ除去: 周囲と大きく異なる孤立ピクセルを中央値色に寄せる */
+function denoise(imageData){
+  const w=imageData.width, h=imageData.height;
+  const src=imageData.data;
+  const out=new Uint8ClampedArray(src);
+  const dist=(i,j)=>{
+    const dr=src[i]-src[j], dg=src[i+1]-src[j+1], db=src[i+2]-src[j+2];
+    return dr*dr+dg*dg+db*db;
+  };
+  const THRESH = 48*48; // 近いとみなす色距離^2
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const idx=(y*w+x)*4;
+      let similar=0;
+      // 8近傍をチェック
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0) continue;
+          const nx=x+dx, ny=y+dy;
+          if(nx<0||ny<0||nx>=w||ny>=h) continue;
+          if(dist(idx,(ny*w+nx)*4) < THRESH) similar++;
+        }
+      }
+      // 周囲に似た色がほとんど無い＝孤立ノイズ → 近傍平均で置換
+      if(similar < CONFIG.DENOISE_MIN_CLUSTER){
+        let r=0,g=0,b=0,n=0;
+        for(let dy=-1;dy<=1;dy++){
+          for(let dx=-1;dx<=1;dx++){
+            const nx=x+dx, ny=y+dy;
+            if(nx<0||ny<0||nx>=w||ny>=h) continue;
+            const j=(ny*w+nx)*4;
+            r+=src[j]; g+=src[j+1]; b+=src[j+2]; n++;
+          }
+        }
+        out[idx]=r/n; out[idx+1]=g/n; out[idx+2]=b/n;
+      }
+    }
+  }
+  return new ImageData(out, w, h);
+}
+
+/** 縮小サイズ向けのアルファマスク(0/1)を作る */
+function buildAlphaMask(srcCanvas, dw, dh){
+  const tmp=document.createElement("canvas");
+  tmp.width=dw; tmp.height=dh;
+  const ctx=tmp.getContext("2d", { willReadFrequently:true });
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(srcCanvas,0,0,srcCanvas.width,srcCanvas.height,0,0,dw,dh);
+  const data=ctx.getImageData(0,0,dw,dh).data;
+  const mask=new Uint8Array(dw*dh);
+  for(let i=0;i<mask.length;i++){
+    mask[i] = data[i*4+3] >= CONFIG.ALPHA_THRESHOLD ? 1 : 0;
+  }
+  tmp.width=0; tmp.height=0;
+  return mask;
+}
+
+/* ----------------- Median Cut による色量子化 ----------------- */
+/**
+ * Median Cut パレット生成
+ * imageData から最大 maxColors 色のパレットを構築
+ */
+function buildPalette(imageData, maxColors, alphaMask){
+  const d=imageData.data;
+  const pixels=[];
+  for(let i=0, p=0; i<d.length; i+=4, p++){
+    if(alphaMask && !alphaMask[p]) continue; // 透明はパレット対象外
+    pixels.push([d[i], d[i+1], d[i+2]]);
+  }
+  if(pixels.length===0) return [[0,0,0]];
+
+  // バケットを再帰的に分割
+  let buckets=[ pixels ];
+  while(buckets.length < maxColors){
+    // 最も「幅の広い」バケットを選んで分割
+    let target=-1, maxRange=-1, splitChannel=0;
+    for(let b=0;b<buckets.length;b++){
+      const bucket=buckets[b];
+      if(bucket.length<=1) continue;
+      const {range, channel}=channelRange(bucket);
+      if(range>maxRange){ maxRange=range; target=b; splitChannel=channel; }
+    }
+    if(target===-1) break; // これ以上分割できない
+    const bucket=buckets[target];
+    bucket.sort((a,b)=> a[splitChannel]-b[splitChannel]);
+    const mid=bucket.length>>1;
+    const left=bucket.slice(0,mid);
+    const right=bucket.slice(mid);
+    buckets.splice(target,1,left,right);
+  }
+
+  // 各バケットの平均色をパレット色に
+  return buckets.map(bucket=>{
+    let r=0,g=0,b=0;
+    for(const px of bucket){ r+=px[0]; g+=px[1]; b+=px[2]; }
+    const n=bucket.length || 1;
+    return [Math.round(r/n), Math.round(g/n), Math.round(b/n)];
+  });
+}
+
+/** バケット内で最も範囲の広いチャンネルを返す */
+function channelRange(bucket){
+  let rmin=255,rmax=0,gmin=255,gmax=0,bmin=255,bmax=0;
+  for(const p of bucket){
+    if(p[0]<rmin)rmin=p[0]; if(p[0]>rmax)rmax=p[0];
+    if(p[1]<gmin)gmin=p[1]; if(p[1]>gmax)gmax=p[1];
+    if(p[2]<bmin)bmin=p[2]; if(p[2]>bmax)bmax=p[2];
+  }
+  // 知覚重み付けで範囲を評価（緑を重視）
+  const rr=(rmax-rmin)*0.30, gr=(gmax-gmin)*0.59, br=(bmax-bmin)*0.11;
+  if(rr>=gr && rr>=br) return {range:rr, channel:0};
+  if(gr>=br) return {range:gr, channel:1};
+  return {range:br, channel:2};
+}
+
+/** パレット中の最近傍色インデックスを返す */
+function nearestColor(palette, r,g,b){
+  let best=0, bestDist=Infinity;
+  for(let i=0;i<palette.length;i++){
+    const p=palette[i];
+    const dr=r-p[0], dg=g-p[1], db=b-p[2];
+    const dist=dr*dr*0.30 + dg*dg*0.59 + db*db*0.11;
+    if(dist<bestDist){ bestDist=dist; best=i; }
+  }
+  return best;
+}
+
+/** ディザなし量子化（最近傍） */
+function quantizeNearest(imageData, palette, alphaMask){
+  const d=imageData.data;
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    if(alphaMask && !alphaMask[p]) continue;
+    const idx=nearestColor(palette, d[i],d[i+1],d[i+2]);
+    const c=palette[idx];
+    d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2];
+  }
+}
+
+/** Floyd–Steinberg ディザリング */
+function floydSteinberg(imageData, palette, alphaMask){
+  const w=imageData.width, h=imageData.height;
+  const d=imageData.data;
+  // 誤差拡散用の浮動小数バッファ
+  const buf=new Float32Array(d.length);
+  for(let i=0;i<d.length;i++) buf[i]=d[i];
+
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const p=y*w+x;
+      const idx=p*4;
+      if(alphaMask && !alphaMask[p]) continue;
+      const oldR=buf[idx], oldG=buf[idx+1], oldB=buf[idx+2];
+      const ci=nearestColor(palette, oldR,oldG,oldB);
+      const c=palette[ci];
+      d[idx]=c[0]; d[idx+1]=c[1]; d[idx+2]=c[2];
+      const errR=oldR-c[0], errG=oldG-c[1], errB=oldB-c[2];
+      // 誤差を近傍へ拡散（7/16, 3/16, 5/16, 1/16）
+      distributeError(buf, w, h, x+1, y,   errR,errG,errB, 7/16);
+      distributeError(buf, w, h, x-1, y+1, errR,errG,errB, 3/16);
+      distributeError(buf, w, h, x,   y+1, errR,errG,errB, 5/16);
+      distributeError(buf, w, h, x+1, y+1, errR,errG,errB, 1/16);
+    }
+  }
+}
+function distributeError(buf,w,h,x,y,er,eg,eb,f){
+  if(x<0||y<0||x>=w||y>=h) return;
+  const idx=(y*w+x)*4;
+  buf[idx]   += er*f;
+  buf[idx+1] += eg*f;
+  buf[idx+2] += eb*f;
+}
+
+/* ============================================================
+   プレビュー描画 / 比較 / ズーム / 背景
+   ============================================================ */
+function getActive(){ return state.images.find(i=>i.id===state.activeId) || null; }
+
+/** ライブプレビューを1フレームに1回へ間引いて実行（操作中も固まらない） */
+function scheduleLivePreview(){
+  if(state.liveTimer) return;
+  state.liveTimer = requestAnimationFrame(()=>{
+    state.liveTimer = null;
+    renderActivePreview();
+  });
+}
+
+/** アクティブ画像の元/変換後をプレビューへ描画 */
+function renderActivePreview(){
+  const item=getActive();
+  const hasImg=!!item;
+  el.btnSavePng.disabled = !hasImg;
+  el.btnCopy.disabled = !hasImg || !navigator.clipboard;
+  el.activeName.textContent = hasImg ? item.name : "— 画像なし —";
+
+  if(!hasImg){
+    el.canvasSrc.hidden=true; el.canvasOut.hidden=true;
+    el.srcEmpty.style.display=""; el.outEmpty.style.display="";
+    el.outEmpty.textContent="—";
+    return;
+  }
+  el.srcEmpty.style.display="none"; el.outEmpty.style.display="none";
+  el.canvasSrc.hidden=false; el.canvasOut.hidden=false;
+
+  // 元画像（ズーム適用、NN表示）
+  drawScaled(el.canvasSrc, item.srcCanvas, state.zoom);
+
+  // 変換後（プレビュー用に都度計算）
+  try{
+    const out=convertImage(item.srcCanvas, state.settings);
+    // アクティブの変換結果はキャッシュしない（設定変動するため）が、保存用には都度生成
+    drawScaled(el.canvasOut, out, state.zoom);
+    out.width=0; out.height=0; // 解放（drawScaledで描画済み）
+  }catch(err){
+    console.error("変換エラー:", err);
+    el.outEmpty.style.display="";
+    el.outEmpty.textContent="変換に失敗しました";
+    el.canvasOut.hidden=true;
+  }
+}
+
+/** sourceCanvas を倍率zoomでtargetCanvasへNN描画 */
+function drawScaled(targetCanvas, sourceCanvas, zoom){
+  const w=sourceCanvas.width*zoom, h=sourceCanvas.height*zoom;
+  targetCanvas.width=w; targetCanvas.height=h;
+  const ctx=targetCanvas.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,w,h);
+  ctx.drawImage(sourceCanvas,0,0,sourceCanvas.width,sourceCanvas.height,0,0,w,h);
+}
+
+function bindPreviewControls(){
+  // ズーム
+  el.zoomSeg.addEventListener("click",(e)=>{
+    const btn=e.target.closest("button"); if(!btn) return;
+    [...el.zoomSeg.children].forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    state.zoom=parseInt(btn.dataset.zoom,10);
+    renderActivePreview();
+  });
+  // 背景色
+  el.bgSeg.addEventListener("click",(e)=>{
+    const btn=e.target.closest("button"); if(!btn) return;
+    [...el.bgSeg.children].forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    state.bg=btn.dataset.bg;
+    applyBackground();
+  });
+}
+function applyBackground(){
+  const cls = "bg-"+state.bg;
+  for(const pane of [el.paneSrc, el.paneOut]){
+    pane.classList.remove("bg-white","bg-black","bg-checker");
+    pane.classList.add(cls);
+  }
+}
+
+/* ============================================================
+   一括処理（非同期バッチ + 進捗）
+   ============================================================ */
+function bindBatch(){
+  el.btnConvertAll.addEventListener("click", convertAll);
+  el.btnDownloadZip.addEventListener("click", downloadZip);
+  el.btnClearAll.addEventListener("click", clearAllImages);
+}
+
+/** requestAnimationFrame を Promise 化 */
+function nextFrame(){ return new Promise(r=> requestAnimationFrame(()=>r())); }
+/** アイドル時間を待つ（無ければrAFで代替） */
+function whenIdle(){
+  return new Promise(res=>{
+    if("requestIdleCallback" in window) requestIdleCallback(()=>res(), {timeout:50});
+    else requestAnimationFrame(()=>res());
+  });
+}
+
+/**
+ * 全画像を逐次変換。1フレームの時間予算内で可能な枚数を処理し、
+ * 超えたら次フレームへ譲ってUIの固まりを防ぐ。
+ */
+async function convertAll(){
+  if(state.batchRunning || !state.images.length) return;
+  state.batchRunning=true;
+  setBatchUIEnabled(false);
+
+  const total=state.images.length;
+  let done=0;
+  // 全件 pending に戻す（再変換に対応）
+  state.images.forEach(i=> i.status="pending");
+  updateProgress(0,total);
+  renderThumbs();
+
+  const snapshot={...state.settings}; // 処理中の設定固定
+
+  let idx=0;
+  while(idx < state.images.length){
+    const frameStart=performance.now();
+    // 時間予算いっぱいまで連続処理
+    while(idx < state.images.length && (performance.now()-frameStart) < CONFIG.BATCH_TIME_BUDGET_MS){
+      const item=state.images[idx];
+      item.status="processing";
+      try{
+        // 既存outを解放してから生成（メモリ管理）
+        if(item.outCanvas){ item.outCanvas.width=0; item.outCanvas.height=0; }
+        item.outCanvas=convertImage(item.srcCanvas, snapshot);
+        item.status="done";
+      }catch(err){
+        console.error("変換失敗:", item.name, err);
+        item.status="pending";
+      }
+      done++; idx++;
+      updateProgress(done,total);
+    }
+    // 進捗を画面へ反映し、フレームを譲る
+    renderThumbs();
+    await nextFrame();
+  }
+
+  state.batchRunning=false;
+  setBatchUIEnabled(true);
+  updateProgress(total,total);
+  renderThumbs();
+  // アクティブのプレビューも更新
+  renderActivePreview();
+  toast(`${total}枚の変換が完了しました`, "ok");
+}
+
+function updateProgress(done,total){
+  const pct= total? Math.round(done/total*100):0;
+  el.progFill.style.width=pct+"%";
+  el.progText.textContent = `${done} / ${total} 枚` + (total&&done<total ? "（処理中…）":"");
+}
+
+/** 一括/個別ボタンの有効状態を制御 */
+function setBatchUIEnabled(enabled){
+  const has=state.images.length>0;
+  el.btnConvertAll.disabled = !enabled || !has;
+  el.btnClearAll.disabled = !enabled || !has;
+  // ZIPは変換済みが1枚でもあれば有効
+  const anyDone=state.images.some(i=>i.status==="done");
+  el.btnDownloadZip.disabled = !enabled || !anyDone;
+}
+
+/* ============================================================
+   サムネイル一覧
+   ============================================================ */
+function renderThumbs(){
+  if(!state.images.length){
+    el.thumbGrid.innerHTML='<div class="empty-state" id="gridEmpty">まだ画像がありません。左の「画像を追加」から取り込んでください。</div>';
+    return;
+  }
+  const frag=document.createDocumentFragment();
+  for(const item of state.images){
+    frag.appendChild(buildThumb(item));
+  }
+  el.thumbGrid.innerHTML="";
+  el.thumbGrid.appendChild(frag);
+}
+
+function buildThumb(item){
+  const wrap=document.createElement("article");
+  wrap.className="thumb" + (item.id===state.activeId?" selected":"");
+
+  // ステータスバッジ
+  const status=document.createElement("div");
+  const statusMap={pending:["pending","未変換"],processing:["processing","変換中…"],done:["done","完了"]};
+  const [scls,stxt]=statusMap[item.status]||statusMap.pending;
+  status.className="th-status "+scls;
+  status.textContent=stxt;
+  wrap.appendChild(status);
+
+  // 画像セル（元 / 変換後）
+  const imgs=document.createElement("div");
+  imgs.className="th-imgs";
+  imgs.appendChild(makeThumbCell(item.srcCanvas, false));
+  imgs.appendChild(makeThumbCell(item.outCanvas, true));
+  wrap.appendChild(imgs);
+
+  // メタ
+  const meta=document.createElement("div");
+  meta.className="th-meta";
+  meta.innerHTML=`<div class="th-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+                  <div class="th-info">${item.w}×${item.h}px</div>`;
+  wrap.appendChild(meta);
+
+  // 操作
+  const acts=document.createElement("div");
+  acts.className="th-actions";
+  const bView=document.createElement("button"); bView.textContent="表示";
+  const bSave=document.createElement("button"); bSave.textContent="保存"; bSave.disabled=!item.outCanvas;
+  const bDel=document.createElement("button"); bDel.textContent="削除"; bDel.className="th-del";
+  bView.addEventListener("click",()=>{ state.activeId=item.id; renderActivePreview(); renderThumbs(); scrollToPreview(); });
+  bSave.addEventListener("click",()=> savePngFor(item));
+  bDel.addEventListener("click",()=> removeImage(item.id));
+  acts.append(bView,bSave,bDel);
+  wrap.appendChild(acts);
+
+  // セル全体クリックでアクティブ化
+  imgs.addEventListener("click",()=>{ state.activeId=item.id; renderActivePreview(); renderThumbs(); });
+  return wrap;
+}
+
+/** サムネ用に縮小Canvasを生成（描画負荷を抑える） */
+function makeThumbCell(sourceCanvas, isOut){
+  const cell=document.createElement("div");
+  cell.className="th-cell";
+  if(!sourceCanvas){
+    cell.innerHTML=`<small style="color:#aab2c0;font-size:10px;">${isOut?"未変換":""}</small>`;
+    return cell;
+  }
+  const max=CONFIG.THUMB_PREVIEW_MAX;
+  const ratio=Math.min(1, max/Math.max(sourceCanvas.width, sourceCanvas.height));
+  const tw=Math.max(1,Math.round(sourceCanvas.width*ratio));
+  const th=Math.max(1,Math.round(sourceCanvas.height*ratio));
+  const c=document.createElement("canvas");
+  c.width=tw; c.height=th;
+  const ctx=c.getContext("2d");
+  ctx.imageSmoothingEnabled = !isOut ? true : false; // 変換後はNN表示でドット感維持
+  ctx.drawImage(sourceCanvas,0,0,sourceCanvas.width,sourceCanvas.height,0,0,tw,th);
+  cell.appendChild(c);
+  return cell;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+}
+function scrollToPreview(){
+  document.querySelector(".preview-col").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ============================================================
+   保存 / コピー
+   ============================================================ */
+function bindSaveCopy(){
+  el.btnSavePng.addEventListener("click",()=>{
+    const item=getActive(); if(!item) return;
+    savePngFor(item);
+  });
+  el.btnCopy.addEventListener("click", copyActive);
+  el.btnReset.addEventListener("click", resetAll);
+}
+
+/** 個別PNG保存（必要なら都度変換） */
+function savePngFor(item){
+  let canvas=item.outCanvas;
+  let temporary=false;
+  if(!canvas){
+    canvas=convertImage(item.srcCanvas, state.settings);
+    temporary=true;
+  }
+  canvas.toBlob((blob)=>{
+    if(!blob){ toast("保存に失敗しました","error"); return; }
+    downloadBlob(blob, makeOutName(item.name));
+    if(temporary){ canvas.width=0; canvas.height=0; }
+    toast("保存しました", "ok");
+  }, "image/png");
+}
+
+/** Blobをダウンロード */
+function downloadBlob(blob, filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+/** クリップボードへコピー（対応ブラウザのみ） */
+async function copyActive(){
+  const item=getActive(); if(!item) return;
+  if(!navigator.clipboard || !window.ClipboardItem){
+    toast("このブラウザはコピーに対応していません","error"); return;
+  }
+  let canvas=item.outCanvas;
+  let temporary=false;
+  if(!canvas){ canvas=convertImage(item.srcCanvas, state.settings); temporary=true; }
+  canvas.toBlob(async (blob)=>{
+    try{
+      await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
+      toast("クリップボードにコピーしました","ok");
+    }catch(err){
+      console.error(err);
+      toast("コピーに失敗しました","error");
+    }finally{
+      if(temporary){ canvas.width=0; canvas.height=0; }
+    }
+  }, "image/png");
+}
+
+/* ============================================================
+   一括ZIP保存（内蔵ZIPライタ使用 / 非同期）
+   ============================================================ */
+async function downloadZip(){
+  const items=state.images.filter(i=>i.outCanvas);
+  if(!items.length){ toast("変換済みの画像がありません","error"); return; }
+
+  el.btnDownloadZip.disabled=true;
+  toast("ZIPを作成しています…");
+
+  try{
+    const zip=new ZipWriter();
+    const usedNames=new Set();
+    let n=0;
+    for(const item of items){
+      let name=makeOutName(item.name);
+      // 重複名の回避
+      let unique=name, k=1;
+      while(usedNames.has(unique)){
+        const dot=name.lastIndexOf(".");
+        unique = name.slice(0,dot) + "_" + (k++) + name.slice(dot);
+      }
+      usedNames.add(unique);
+
+      const blob=await canvasToBlob(item.outCanvas, "image/png");
+      const bytes=new Uint8Array(await blob.arrayBuffer());
+      zip.addFile(unique, bytes);
+
+      n++;
+      if(n % 8 === 0){ updateProgress(n, items.length); await whenIdle(); }
+    }
+    const zipBlob=zip.generate();
+    downloadBlob(zipBlob, "pixel_art_export.zip");
+    toast(`${items.length}枚をZIPに保存しました`, "ok");
+  }catch(err){
+    console.error(err);
+    toast("ZIP作成に失敗しました","error");
+  }finally{
+    el.btnDownloadZip.disabled=false;
+    updateProgress(state.images.filter(i=>i.status==="done").length, state.images.length);
+  }
+}
+function canvasToBlob(canvas, type){
+  return new Promise(res=> canvas.toBlob(b=>res(b), type));
+}
+
+/* ============================================================
+   内蔵 ZIP ライタ（無圧縮 Store 方式 + CRC32）
+   外部ライブラリ不要・オフライン動作
+   ============================================================ */
+const CRC_TABLE=(()=>{
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1);
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c>>>8);
+  return (c ^ 0xFFFFFFFF)>>>0;
+}
+class ZipWriter{
+  constructor(){ this.files=[]; }
+  /** name: 文字列, data: Uint8Array（無圧縮で格納） */
+  addFile(name, data){
+    this.files.push({ name, data, crc:crc32(data) });
+  }
+  generate(){
+    const enc=new TextEncoder();
+    const localParts=[];
+    const centralParts=[];
+    let offset=0;
+
+    for(const f of this.files){
+      const nameBytes=enc.encode(f.name);
+      const size=f.data.length;
+      // --- ローカルファイルヘッダ ---
+      const lh=new Uint8Array(30+nameBytes.length);
+      const lv=new DataView(lh.buffer);
+      lv.setUint32(0, 0x04034b50, true);   // signature
+      lv.setUint16(4, 20, true);           // version needed
+      lv.setUint16(6, 0, true);            // flags
+      lv.setUint16(8, 0, true);            // method=0 (store)
+      lv.setUint16(10, 0, true);           // mod time
+      lv.setUint16(12, 0, true);           // mod date
+      lv.setUint32(14, f.crc, true);       // crc32
+      lv.setUint32(18, size, true);        // compressed size
+      lv.setUint32(22, size, true);        // uncompressed size
+      lv.setUint16(26, nameBytes.length, true);
+      lv.setUint16(28, 0, true);           // extra len
+      lh.set(nameBytes, 30);
+      localParts.push(lh, f.data);
+
+      // --- セントラルディレクトリ ---
+      const ch=new Uint8Array(46+nameBytes.length);
+      const cv=new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true);   // signature
+      cv.setUint16(4, 20, true);           // version made by
+      cv.setUint16(6, 20, true);           // version needed
+      cv.setUint16(8, 0, true);            // flags
+      cv.setUint16(10, 0, true);           // method
+      cv.setUint16(12, 0, true);           // time
+      cv.setUint16(14, 0, true);           // date
+      cv.setUint32(16, f.crc, true);
+      cv.setUint32(20, size, true);
+      cv.setUint32(24, size, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint16(30, 0, true);           // extra len
+      cv.setUint16(32, 0, true);           // comment len
+      cv.setUint16(34, 0, true);           // disk number
+      cv.setUint16(36, 0, true);           // internal attrs
+      cv.setUint32(38, 0, true);           // external attrs
+      cv.setUint32(42, offset, true);      // local header offset
+      ch.set(nameBytes, 46);
+      centralParts.push(ch);
+
+      offset += lh.length + size;
+    }
+
+    // セントラルディレクトリ合計サイズ
+    let centralSize=0;
+    for(const c of centralParts) centralSize+=c.length;
+
+    // --- End Of Central Directory ---
+    const eocd=new Uint8Array(22);
+    const ev=new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(4, 0, true);
+    ev.setUint16(6, 0, true);
+    ev.setUint16(8, this.files.length, true);
+    ev.setUint16(10, this.files.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, offset, true);        // central dir offset
+    ev.setUint16(20, 0, true);
+
+    return new Blob([...localParts, ...centralParts, eocd], { type:"application/zip" });
+  }
+}
+
+/* ============================================================
+   リセット / リスト変更後の更新
+   ============================================================ */
+function resetAll(){
+  state.settings=getDefaultSettings();
+  syncSettingsToUI();
+  renderActivePreview();
+  renderThumbs();
+  toast("設定を初期状態に戻しました");
+}
+
+/** 画像リストが変わったあとのUI一括更新 */
+function refreshAfterListChange(){
+  if(!state.activeId && state.images.length){
+    state.activeId=state.images[0].id;
+  }
+  renderThumbs();
+  renderActivePreview();
+  setBatchUIEnabled(true);
+}
+
+/* ============================================================
+   初期化
+   ============================================================ */
+function init(){
+  bindSettings();
+  bindLoading();
+  bindPreviewControls();
+  bindBatch();
+  bindSaveCopy();
+  syncSettingsToUI();
+  applyBackground();
+  // コピー非対応ブラウザではボタンを無効化
+  if(!navigator.clipboard || !window.ClipboardItem){
+    el.btnCopy.title="このブラウザはコピー非対応です";
+  }
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
