@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>人物マップ</title>
+<meta name="description" content="小説の人物カードを書きながら、人物同士の関係を線でつなげるツール。ブラウザだけで動き、データはこの端末に自動保存されます。">
+<meta name="theme-color" content="#dbe3ec">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗂%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@700;900&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   デザイントークン
+   机（薄藍）の上に、白い情報カードを置き、荷札つきの糸でつなぐ。
+   ========================================================================= */
+:root{
+  --desk:#dbe3ec;       /* 机（キャンバス） */
+  --paper:#fcfbf8;      /* 紙（カード・パネル） */
+  --panel:#f6f8fb;
+  --ink:#1d2842;        /* 墨紺（文字） */
+  --sub:#5a6682;
+  --indigo:#2f4f8f;     /* 藍（操作の色） */
+  --rule:#c5d0de;       /* 罫線 */
+  --cellline:#8da2c4;   /* 原稿用紙のマス目 */
+  --danger:#b8402a;
+  --ui:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  --mincho:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --dw:0px;             /* 右の人物カード欄が占める幅（JSが更新） */
+}
+*{ box-sizing:border-box; }
+[hidden]{ display:none !important; }
+html,body{ height:100%; margin:0; overflow:hidden; }
+body{
+  font-family:var(--ui); font-size:15px; line-height:1.6; color:var(--ink);
+  background:var(--desk); -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent;
+}
+button{ font-family:inherit; color:inherit; }
+:focus-visible{ outline:3px solid var(--indigo); outline-offset:2px; }
+
+/* ---------- 机（キャンバス） ---------- */
+#canvas{
+  position:fixed; inset:0; z-index:0; overflow:hidden;
+  touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab;
+  background-color:var(--desk);
+  background-image:radial-gradient(circle, rgba(29,40,66,.2) 1.3px, transparent 1.7px);
+  background-size:calc(28px * var(--k,1)) calc(28px * var(--k,1));
+  background-position:var(--x,0px) var(--y,0px);
+}
+#canvas:focus{ outline:none; }
+#canvas.panning{ cursor:grabbing; }
+#canvas.linking{ cursor:crosshair; }
+#world{ position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
+#links,#draft{ position:absolute; left:0; top:0; overflow:visible; pointer-events:none; }
+#cards,#labels{ position:absolute; left:0; top:0; width:0; height:0; }
+#marquee{ position:absolute; border:1.5px solid var(--indigo); background:rgba(47,79,143,.1); pointer-events:none; }
+
+/* ---------- 人物カード（情報カード） ---------- */
+.card{
+  position:absolute; left:0; top:0; width:232px;
+  padding:18px 14px 14px;
+  background:var(--paper);
+  border:1px solid #b6c2d3; border-radius:3px;
+  box-shadow:0 1px 0 #b6c2d3;
+  cursor:grab; touch-action:none;
+  transition:opacity .15s;
+}
+.card::before{                                   /* 上辺の色のタブ */
+  content:""; position:absolute; left:-1px; right:-1px; top:-1px; height:8px;
+  background:var(--c,#2f4f8f); border-radius:3px 3px 0 0;
+}
+.card:focus{ outline:none; }
+.card:focus-visible{ outline:3px solid var(--indigo); outline-offset:3px; }
+.card.sel{ outline:2px solid var(--indigo); outline-offset:3px; box-shadow:0 14px 26px -12px rgba(29,40,66,.5); }
+.card.dim{ opacity:.28; }
+.card.drop{ outline:3px solid var(--indigo); outline-offset:5px; }
+.card.dragging{ cursor:grabbing; box-shadow:0 18px 30px -12px rgba(29,40,66,.55); }
+.card.pop{ animation:pop .22s ease-out; }
+@keyframes pop{ from{ opacity:0; scale:.88; } to{ opacity:1; scale:1; } }
+
+.nm{ display:flex; flex-wrap:wrap; font-family:var(--mincho); }        /* 原稿用紙のマス目 */
+.cell{
+  width:28px; height:31px; display:grid; place-items:center;
+  margin:0 -1px -1px 0; background:#fff;
+  border:1px solid var(--cellline);
+  font-weight:900; font-size:18px; line-height:1; color:var(--ink);
+}
+.nm.empty .cell{ border-style:dashed; background:transparent; }
+.kana{ margin:6px 0 0; font-size:11px; letter-spacing:.08em; color:var(--sub); }
+.role{
+  display:inline-block; margin-top:8px; padding:0 9px;
+  font-size:12px; font-weight:700; line-height:20px;
+  color:var(--cf,#fff); background:var(--c,#2f4f8f); border-radius:99px;
+}
+.sum{                                                              /* 罫線入りの一言欄 */
+  margin-top:8px; max-height:66px; overflow:hidden; white-space:pre-wrap;
+  font-size:13px; line-height:22px; color:#2c3752;
+  background:repeating-linear-gradient(to bottom, transparent 0, transparent 21px, var(--rule) 21px, var(--rule) 22px);
+}
+
+/* 糸をつなぐ丸い点 */
+.handle{
+  position:absolute; width:16px; height:16px; padding:0; border-radius:50%;
+  background:var(--indigo); border:2.5px solid var(--paper); box-shadow:0 0 0 1px var(--indigo);
+  opacity:0; cursor:crosshair; touch-action:none; transition:opacity .12s;
+}
+.handle::after{ content:""; position:absolute; inset:-10px; }
+.card:hover .handle,.card.sel .handle,.card:focus-within .handle{ opacity:1; }
+.h-t{ left:50%; top:-9px; margin-left:-8px; }
+.h-b{ left:50%; bottom:-9px; margin-left:-8px; }
+.h-l{ left:-9px; top:50%; margin-top:-8px; }
+.h-r{ right:-9px; top:50%; margin-top:-8px; }
+
+/* ---------- 糸（関係の線）と荷札（関係の名前） ---------- */
+.lk .ln{ fill:none; stroke:var(--lc); stroke-linecap:round; }
+.lk .ah{ fill:var(--lc); stroke:var(--lc); stroke-width:1.5; stroke-linejoin:round; }
+.lk .hit{ fill:none; stroke:transparent; stroke-width:20; pointer-events:stroke; cursor:pointer; }
+.lk.dim{ opacity:.16; }
+.lk.sel .ln{ filter:drop-shadow(0 0 3px var(--lc)); }
+#draft path{ fill:none; stroke:var(--indigo); stroke-width:2.5; stroke-dasharray:3 7; stroke-linecap:round; display:none; }
+#draft.on path{ display:block; }
+
+.ltag{
+  position:absolute; left:0; top:0;
+  max-width:190px; padding:1px 10px 1px 16px;
+  font-size:12.5px; font-weight:700; line-height:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  background:var(--paper); color:var(--ink);
+  border:1.5px solid var(--lc); border-radius:4px; cursor:pointer;
+  touch-action:none;
+}
+.ltag::before{                                  /* 荷札の穴 */
+  content:""; position:absolute; left:5px; top:50%; width:5px; height:5px; margin-top:-3.5px;
+  border-radius:50%; border:1.5px solid var(--lc);
+}
+.ltag.empty{ width:16px; height:16px; padding:0; border-radius:50%; background:var(--lc); }
+.ltag.empty::before{ display:none; }
+.ltag.sel{ outline:2px solid var(--indigo); outline-offset:2px; }
+.ltag.dim{ opacity:.22; }
+
+/* ---------- 画面の部品 ---------- */
+.topbar{
+  position:fixed; z-index:10; left:12px; right:calc(var(--dw) + 12px); top:12px;
+  display:flex; justify-content:space-between; align-items:flex-start; gap:10px; pointer-events:none;
+}
+.topbar > *{ pointer-events:auto; }
+.mapchip{ display:flex; align-items:center; gap:4px; padding:4px; background:var(--paper); border:1px solid var(--rule); border-radius:10px; }
+.mapchip input{
+  width:min(260px,38vw); padding:6px 10px; border:0; background:transparent;
+  font:700 16px var(--ui); color:var(--ink); border-radius:6px;
+}
+.mapchip input:hover{ background:#eef2f8; }
+.top-right{ display:flex; gap:6px; }
+.chip-btn{
+  padding:8px 14px; font:700 13px var(--ui); white-space:nowrap;
+  background:var(--paper); border:1px solid var(--rule); border-radius:8px; cursor:pointer;
+}
+.chip-btn:hover{ background:#eef2f8; }
+.chip-btn.plain{ border-color:transparent; background:transparent; }
+.chip-btn.plain:hover{ background:#eef2f8; }
+
+.toolbar{
+  position:fixed; z-index:10; bottom:16px; left:calc((100vw - var(--dw)) / 2); transform:translateX(-50%);
+  display:flex; align-items:center; gap:2px; padding:5px;
+  max-width:calc(100vw - var(--dw) - 20px); overflow-x:auto;
+  background:var(--paper); border:1px solid var(--rule); border-radius:12px;
+}
+.tb{
+  flex:none; padding:8px 12px; font:700 13px var(--ui); white-space:nowrap;
+  background:transparent; border:0; border-radius:8px; cursor:pointer;
+}
+.tb:hover:not(:disabled){ background:#e8edf4; }
+.tb:disabled{ opacity:.35; cursor:default; }
+.tb.primary{ background:var(--indigo); color:#fff; }
+.tb.primary:hover:not(:disabled){ background:#264281; }
+.tb[aria-pressed="true"]{ background:#dfe7f5; box-shadow:inset 0 0 0 1.5px var(--indigo); }
+.sep{ flex:none; width:1px; height:22px; margin:0 3px; background:var(--rule); }
+
+.legend{
+  position:fixed; z-index:10; left:12px; bottom:16px;
+  display:flex; flex-direction:column; gap:4px; padding:8px 10px;
+  background:var(--paper); border:1px solid var(--rule); border-radius:10px;
+}
+.lg{ display:flex; align-items:center; gap:8px; }
+.lg i{ flex:none; width:14px; height:14px; border-radius:3px; background:var(--lc); }
+.lg input{ width:150px; padding:2px 6px; border:0; border-bottom:1px solid var(--rule); background:transparent; font:500 13px var(--ui); color:var(--ink); }
+.lg input::placeholder{ color:#8b96ad; }
+.lg-toggle{ padding:2px 0; text-align:left; font:700 12px var(--ui); color:var(--indigo); background:transparent; border:0; cursor:pointer; }
+.lg-toggle:hover{ text-decoration:underline; }
+
+.empty{
+  position:fixed; z-index:5; left:calc((100vw - var(--dw)) / 2); top:46%; transform:translate(-50%,-50%);
+  width:min(420px, calc(100vw - var(--dw) - 40px)); text-align:center; pointer-events:none;
+}
+.empty h2{ margin:0 0 10px; font:900 26px/1.4 var(--mincho); }
+.empty p{ margin:0 0 16px; font-size:14px; color:var(--sub); }
+.empty .tb{ pointer-events:auto; border:1px solid var(--indigo); color:var(--indigo); background:var(--paper); }
+
+.toast{
+  position:fixed; z-index:40; left:calc((100vw - var(--dw)) / 2); bottom:76px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:12px; padding:9px 16px;
+  background:var(--ink); color:#fff; border-radius:10px; font-size:13.5px; font-weight:500;
+}
+.toast button{ padding:2px 8px; border:1px solid rgba(255,255,255,.5); border-radius:6px; background:transparent; color:#fff; font:700 13px var(--ui); cursor:pointer; }
+
+/* ---------- メニュー・ポップオーバー ---------- */
+.menu,.pop{
+  position:fixed; z-index:30; background:var(--paper);
+  border:1px solid var(--rule); border-radius:10px; padding:6px;
+  box-shadow:0 14px 30px -14px rgba(29,40,66,.5);
+}
+.menu{ min-width:250px; max-width:300px; }
+.menu .mi,.menu > button{
+  display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%;
+  padding:8px 10px; text-align:left; font:500 14px var(--ui); background:transparent; border:0; border-radius:6px; cursor:pointer;
+}
+.menu .mi:hover,.menu > button:hover{ background:#eef2f8; }
+.menu .mi.on{ font-weight:700; background:#e4ebf6; }
+.menu small{ color:var(--sub); }
+.menu .danger{ color:var(--danger); }
+.menu hr{ border:0; border-top:1px solid var(--rule); margin:6px 0; }
+.menu .note{ margin:4px 10px 6px; font-size:12px; line-height:1.7; color:var(--sub); }
+.menu .row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 10px; font-size:13px; }
+.menu a{ display:block; padding:8px 10px; font-size:14px; color:inherit; border-radius:6px; text-decoration:none; }
+.menu a:hover{ background:#eef2f8; }
+.seg{ display:flex; border:1px solid var(--rule); border-radius:7px; overflow:hidden; }
+.seg button{ padding:4px 10px; font:700 12px var(--ui); background:transparent; border:0; cursor:pointer; }
+.seg button[aria-pressed="true"]{ background:var(--indigo); color:#fff; }
+
+.pop{ width:310px; padding:12px; }
+.pop-label{
+  width:100%; padding:8px 10px; font:700 16px var(--ui);
+  color:var(--ink); background:#fff; border:1px solid var(--cellline); border-radius:7px;
+}
+.pop .group{ margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+.kchip{
+  display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 8px;
+  font:700 12.5px var(--ui); background:#fff; border:1.5px solid var(--rule); border-radius:99px; cursor:pointer;
+}
+.kchip i{ width:10px; height:10px; border-radius:50%; background:var(--lc); }
+.kchip.on{ border-color:var(--lc); box-shadow:inset 0 0 0 1px var(--lc); }
+.dirs{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; }
+.dirs button{
+  padding:5px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font:700 12.5px var(--ui); background:#fff; border:1.5px solid var(--rule); border-radius:7px; cursor:pointer;
+}
+.dirs button[aria-pressed="true"]{ border-color:var(--indigo); background:#e4ebf6; }
+.pop .del{ margin-top:10px; padding:4px 0; font:700 12.5px var(--ui); color:var(--danger); background:transparent; border:0; cursor:pointer; }
+
+/* ---------- 右の人物カード欄 ---------- */
+#drawer{
+  position:fixed; z-index:20; top:0; right:0; bottom:0; width:360px;
+  display:flex; flex-direction:column;
+  background:var(--panel); border-left:1px solid var(--rule);
+  transform:translateX(100%); transition:transform .22s ease;
+}
+body.drawer-open #drawer{ transform:none; }
+.dr-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--rule); }
+.dr-head h2{ margin:0; font:900 18px var(--mincho); }
+#drBody{ flex:1; overflow-y:auto; padding:14px 16px 40px; }
+
+.colors{ display:flex; gap:8px; margin-bottom:14px; }
+.sw{
+  width:26px; height:26px; padding:0; border-radius:50%; background:var(--sw); cursor:pointer;
+  border:2px solid var(--panel); box-shadow:0 0 0 1px rgba(29,40,66,.25);
+}
+.sw.on{ box-shadow:0 0 0 2.5px var(--ink); }
+.fld{ display:block; margin-bottom:12px; }
+.fl{ display:block; margin-bottom:3px; font-size:12px; font-weight:700; color:var(--sub); }
+#drBody input[type=text],#drBody input[type=search],#drBody textarea,#drBody select{
+  width:100%; padding:8px 10px; font:15px/1.6 var(--ui); color:var(--ink);
+  background:#fff; border:1px solid var(--rule); border-radius:7px;
+}
+#drBody textarea{ resize:none; overflow:hidden; min-height:40px; }
+#drBody textarea.memo{ min-height:120px; }
+#drBody input.name{ font:900 20px var(--mincho); }
+.sec{ margin:20px 0 8px; padding-top:14px; border-top:1px solid var(--rule); font:900 15px var(--mincho); }
+.cf{ margin-bottom:12px; }
+.cf-head{ display:flex; gap:6px; align-items:center; margin-bottom:3px; }
+.cf-head input{ flex:1; padding:2px 6px !important; font:700 12px var(--ui) !important; color:var(--sub) !important; background:transparent !important; border:1px solid transparent !important; }
+.cf-head input:hover,.cf-head input:focus{ border-color:var(--rule) !important; background:#fff !important; }
+.x{ padding:0 6px; font-size:16px; line-height:1.4; color:var(--sub); background:transparent; border:0; cursor:pointer; }
+.x:hover{ color:var(--danger); }
+.add-btn{ padding:6px 12px; font:700 13px var(--ui); color:var(--indigo); background:transparent; border:1px dashed var(--indigo); border-radius:7px; cursor:pointer; }
+.rel{ display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.rel i{ flex:none; width:10px; height:10px; border-radius:50%; background:var(--lc); }
+.rel .ar{ flex:none; width:18px; text-align:center; color:var(--sub); font-weight:700; }
+.rel .who{ flex:none; max-width:96px; padding:2px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 13px var(--ui); background:#fff; border:1px solid var(--rule); border-radius:6px; cursor:pointer; }
+.rel input{ flex:1; min-width:0; padding:4px 8px !important; font-size:14px !important; }
+.relnew{ display:flex; gap:6px; margin-top:10px; }
+.relnew select{ flex:1; min-width:0; }
+.muted{ margin:6px 0; font-size:13px; color:var(--sub); }
+.danger-btn{ margin-top:26px; padding:8px 14px; font:700 13px var(--ui); color:var(--danger); background:transparent; border:1px solid var(--danger); border-radius:8px; cursor:pointer; }
+.plist{ list-style:none; margin:10px 0 0; padding:0; }
+.prow{ display:flex; align-items:center; gap:10px; width:100%; padding:8px 6px; text-align:left; background:transparent; border:0; border-bottom:1px solid var(--rule); cursor:pointer; }
+.prow:hover{ background:#eaeff6; }
+.prow i{ flex:none; width:12px; height:12px; border-radius:3px; }
+.prow .pn{ font:900 16px var(--mincho); }
+.prow .pr{ margin-left:auto; font-size:12px; color:var(--sub); }
+.tips{ margin:22px 0 0; padding:0; list-style:none; font-size:13px; line-height:1.75; color:var(--sub); }
+.tips li{ padding:5px 0 5px 14px; border-left:3px solid var(--rule); margin-bottom:6px; }
+
+/* ---------- スマホ：人物カード欄は下から出る ---------- */
+.t-short{ display:none; }
+@media (max-width:759px){
+  .t-long{ display:none; }
+  .t-short{ display:inline; }
+  .chip-btn{ padding:8px 10px; }
+  .mapchip input{ width:36vw; }
+  .lg input{ width:110px; }
+  #drawer{ top:auto; left:0; width:auto; height:58vh; border-left:0; border-top:1px solid var(--rule); border-radius:14px 14px 0 0; transform:translateY(100%); }
+  body.drawer-open #drawer{ transform:none; }
+  .topbar{ right:12px; flex-wrap:wrap; }
+  .toolbar{ bottom:10px; }
+  .legend{ bottom:68px; }
+  .toast{ bottom:70px; }
+}
+@media (prefers-reduced-motion:reduce){
+  *{ animation:none !important; transition:none !important; }
+}
+</style>
+</head>
+
+<body>
+<noscript><p style="padding:24px">このツールはJavaScriptを使います。JavaScriptを有効にして開き直してください。</p></noscript>
+
+<div id="canvas" tabindex="-1" aria-label="人物マップの作業台">
+  <div id="world">
+    <svg id="links" width="1" height="1"></svg>
+    <div id="cards"></div>
+    <div id="labels"></div>
+    <svg id="draft" width="1" height="1"><path d=""/></svg>
+  </div>
+  <div id="marquee" hidden></div>
+</div>
+
+<header class="topbar">
+  <div class="mapchip">
+    <input id="mapName" type="text" maxlength="40" aria-label="マップの名前" placeholder="マップの名前">
+    <button id="mapMenuBtn" class="chip-btn plain" type="button" aria-haspopup="true" aria-expanded="false" aria-label="マップを切り替える"><span class="t-long">マップを切り替える</span><span class="t-short">切替</span></button>
+  </div>
+  <div class="top-right">
+    <button id="fileBtn" class="chip-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="保存・読み込み"><span class="t-long">保存・読み込み</span><span class="t-short">保存</span></button>
+    <button id="drawerBtn" class="chip-btn" type="button" aria-label="人物カードを開く"><span class="t-long">人物カードを開く</span><span class="t-short">人物</span></button>
+  </div>
+</header>
+
+<div id="mapMenu" class="menu" hidden></div>
+<div id="fileMenu" class="menu" hidden>
+  <button id="exportBtn" type="button">このマップを書き出す（.json）</button>
+  <button id="importBtn" type="button">ファイルから読み込む</button>
+  <hr>
+  <div class="row"><span>マウスのホイール</span>
+    <div class="seg"><button type="button" data-wheel="zoom">拡大縮小</button><button type="button" data-wheel="pan">移動</button></div>
+  </div>
+  <hr>
+  <p class="note">データはこのブラウザに自動で保存されます。大切な設定は、ときどき書き出して保管してください。</p>
+  <a href="../index.html">ツール一覧にもどる</a>
+</div>
+<input id="fileInput" type="file" accept=".json,application/json" hidden>
+
+<div id="legend" class="legend" hidden></div>
+
+<div id="empty" class="empty" hidden>
+  <h2>ここに、最初の人物を置きましょう。</h2>
+  <p>何もないところをダブルクリック（スマホはダブルタップ）すると、人物カードができます。カードのふちの丸い点から線を引くと、関係をつなげられます。</p>
+  <button id="sampleBtn" class="tb" type="button">サンプルで操作を試す</button>
+</div>
+
+<nav class="toolbar" aria-label="操作">
+  <button class="tb primary" id="addBtn" type="button" title="人物を追加（N）">人物を追加</button>
+  <span class="sep"></span>
+  <button class="tb" id="relaxBtn" type="button" title="つながりの近い人物が近くに来るよう、自動で並べ直します">並べ直す</button>
+  <button class="tb" id="focusBtn" type="button" aria-pressed="true" title="選んだ人物とそのつながりだけを濃く見せます">関係を強調</button>
+  <span class="sep"></span>
+  <button class="tb" id="undoBtn" type="button" title="元に戻す（Ctrl+Z）">戻す</button>
+  <button class="tb" id="redoBtn" type="button" title="やり直す（Ctrl+Shift+Z）">やり直す</button>
+  <span class="sep"></span>
+  <button class="tb" id="zoomOut" type="button" aria-label="縮小" title="縮小（−）">−</button>
+  <button class="tb" id="zoomLabel" type="button" title="全体を表示（F）">全体</button>
+  <button class="tb" id="zoomIn" type="button" aria-label="拡大" title="拡大（＋）">＋</button>
+</nav>
+
+<aside id="drawer" aria-label="人物カード">
+  <div class="dr-head"><h2 id="drTitle">人物カード</h2><button id="drClose" class="chip-btn plain" type="button">閉じる</button></div>
+  <div id="drBody"></div>
+</aside>
+
+<div id="linkPop" class="pop" role="dialog" aria-label="関係を編集" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================================
+   小道具
+   ========================================================================= */
+const $  = (s, r = document) => r.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'value') e.value = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid != null) e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return e;
+}
+function sv(tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  return e;
+}
+const autosize = t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; };
+
+/* =========================================================================
+   定数
+   ========================================================================= */
+const CARD_W = 232, CARD_H = 150, DRAWER_W = 360;
+const COLORS = [
+  { id: 'ai',       name: '藍',   hex: '#2f4f8f', fg: '#ffffff' },
+  { id: 'shu',      name: '朱',   hex: '#c8452d', fg: '#ffffff' },
+  { id: 'yamabuki', name: '山吹', hex: '#e3a72f', fg: '#1d2842' },
+  { id: 'wakatake', name: '若竹', hex: '#2f8558', fg: '#ffffff' },
+  { id: 'sora',     name: '空',   hex: '#3a9bc9', fg: '#0f2437' },
+  { id: 'fuji',     name: '藤',   hex: '#6f5aa8', fg: '#ffffff' },
+  { id: 'sakura',   name: '桜',   hex: '#d9779b', fg: '#2a1020' },
+  { id: 'nezu',     name: '鼠',   hex: '#5f6b77', fg: '#ffffff' }
+];
+const KINDS = [
+  { id: 'family', name: '家族',       color: '#2f8558', dash: '',     w: 2.4 },
+  { id: 'love',   name: '恋愛',       color: '#d9779b', dash: '',     w: 3 },
+  { id: 'friend', name: '友人',       color: '#3a9bc9', dash: '',     w: 2.4 },
+  { id: 'master', name: '師弟・主従', color: '#6f5aa8', dash: '',     w: 2.4 },
+  { id: 'rival',  name: 'ライバル',   color: '#e3a72f', dash: '9 6',  w: 2.8 },
+  { id: 'enemy',  name: '敵対',       color: '#c8452d', dash: '',     w: 3.2 },
+  { id: 'secret', name: '秘密・因縁', color: '#5f6b77', dash: '2 7',  w: 3 },
+  { id: 'other',  name: 'その他',     color: '#2b3a5e', dash: '',     w: 2 }
+];
+const colorOf = id => COLORS.find(c => c.id === id) || COLORS[0];
+const kindOf  = id => KINDS.find(k => k.id === id) || KINDS[KINDS.length - 1];
+const DEFAULT_FIELDS = ['外見', '性格', '目的・動機', '過去'];
+const isMobile = () => innerWidth < 760;
+
+/* =========================================================================
+   データ（ブラウザに自動保存）
+   ========================================================================= */
+const KEY = 'jinbutsu-map:v1';
+
+function normalizeMap(m) {
+  const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+  const num = (v, d) => Number.isFinite(v) ? v : d;
+  const cards = (Array.isArray(m && m.cards) ? m.cards : []).map(c => ({
+    id: str(c.id, 32) || uid(), x: num(c.x, 0), y: num(c.y, 0),
+    name: str(c.name, 60), kana: str(c.kana, 60), role: str(c.role, 60), sum: str(c.sum, 300),
+    color: COLORS.some(k => k.id === c.color) ? c.color : 'ai',
+    fields: (Array.isArray(c.fields) ? c.fields : []).slice(0, 40).map(f => ({ k: str(f && f.k, 40), v: str(f && f.v, 20000) })),
+    memo: str(c.memo, 50000)
+  }));
+  const seen = new Set();
+  cards.forEach(c => { if (seen.has(c.id)) c.id = uid(); seen.add(c.id); });
+  const ids = new Set(cards.map(c => c.id));
+  const links = (Array.isArray(m && m.links) ? m.links : [])
+    .filter(l => l && ids.has(l.a) && ids.has(l.b) && l.a !== l.b)
+    .map(l => ({
+      id: str(l.id, 32) || uid(), a: l.a, b: l.b, label: str(l.label, 40),
+      kind: KINDS.some(k => k.id === l.kind) ? l.kind : 'other',
+      dir: ['none', 'ab', 'ba', 'both'].includes(l.dir) ? l.dir : 'none'
+    }));
+  const legend = {};
+  if (m && m.legend && typeof m.legend === 'object') COLORS.forEach(c => { if (typeof m.legend[c.id] === 'string') legend[c.id] = m.legend[c.id].slice(0, 30); });
+  const v = (m && m.view) || {};
+  return {
+    id: str(m && m.id, 32) || uid(), name: str(m && m.name, 40) || '名前のないマップ',
+    cards, links, legend, view: { x: num(v.x, innerWidth / 2), y: num(v.y, innerHeight / 2), k: clamp(num(v.k, 1), 0.2, 2.5) }
+  };
+}
+function emptyMap(name) {
+  return normalizeMap({ id: uid(), name, cards: [], links: [], legend: {}, view: { x: innerWidth / 2, y: innerHeight / 2, k: 1 } });
+}
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const o = JSON.parse(raw); if (o && Array.isArray(o.maps) && o.maps.length) return o; }
+  } catch (e) { /* 保存領域が使えない場合は、保存なしで動かす */ }
+  return null;
+}
+let store = loadStore();
+if (!store) { const m = emptyMap('名前のないマップ'); store = { v: 1, current: m.id, ui: {}, maps: [m] }; }
+store.maps = store.maps.map(normalizeMap);
+store.ui = Object.assign({ focus: true, wheel: 'zoom', drawer: null }, store.ui || {});
+let map = store.maps.find(m => m.id === store.current) || store.maps[0];
+store.current = map.id;
+
+let saveTimer = null, storageWarned = false;
+function writeNow() {
+  try { localStorage.setItem(KEY, JSON.stringify(store)); }
+  catch (e) { if (!storageWarned) { storageWarned = true; toast('このブラウザには保存できません。「保存・読み込み」から書き出してください。'); } }
+}
+function save() { clearTimeout(saveTimer); saveTimer = setTimeout(writeNow, 250); }
+addEventListener('pagehide', () => { flushCommit(); writeNow(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { flushCommit(); writeNow(); } });
+
+/* ---------- 元に戻す／やり直す ---------- */
+let hist = [], hi = -1, batching = 0, ctimer = null;
+const snap = () => JSON.stringify({ cards: map.cards, links: map.links, legend: map.legend });
+function resetHistory() { hist = [snap()]; hi = 0; updateUndoUI(); }
+function commit() {
+  if (batching) return;
+  const s = snap();
+  if (s === hist[hi]) { save(); return; }
+  hist = hist.slice(0, hi + 1); hist.push(s);
+  if (hist.length > 150) hist.shift();
+  hi = hist.length - 1;
+  save(); updateUndoUI();
+}
+function tx(fn) { batching++; try { fn(); } finally { batching--; } commit(); }
+function typingCommit() { clearTimeout(ctimer); ctimer = setTimeout(() => { ctimer = null; commit(); }, 700); save(); }
+function flushCommit() { if (ctimer) { clearTimeout(ctimer); ctimer = null; commit(); } }
+function restore(s) {
+  const o = JSON.parse(s);
+  map.cards = o.cards; map.links = o.links; map.legend = o.legend || {};
+  sel.cards = new Set([...sel.cards].filter(id => cardById(id)));
+  if (sel.link && !linkById(sel.link)) { sel.link = null; closeLinkPop(); }
+  fullRender(); save();
+}
+function undo() { flushCommit(); if (hi > 0) { hi--; restore(hist[hi]); updateUndoUI(); } }
+function redo() { flushCommit(); if (hi < hist.length - 1) { hi++; restore(hist[hi]); updateUndoUI(); } }
+function updateUndoUI() { $('#undoBtn').disabled = hi <= 0; $('#redoBtn').disabled = hi >= hist.length - 1; }
+
+/* =========================================================================
+   参照
+   ========================================================================= */
+const canvas = $('#canvas'), world = $('#world'), cardsLayer = $('#cards'), labelsLayer = $('#labels');
+const linksSvg = $('#links'), draft = $('#draft'), draftPath = $('#draft path'), marquee = $('#marquee');
+const drawer = $('#drawer'), drBody = $('#drBody'), drTitle = $('#drTitle');
+const linkPop = $('#linkPop'), mapMenu = $('#mapMenu'), fileMenu = $('#fileMenu');
+const cardEls = new Map(), linkEls = new Map(), tagEls = new Map(), linkMid = new Map(), sizes = new Map();
+const sel = { cards: new Set(), link: null };
+const cardById = id => map.cards.find(c => c.id === id);
+const linkById = id => map.links.find(l => l.id === id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* =========================================================================
+   表示（ズーム・移動）
+   ========================================================================= */
+function applyView() {
+  const v = map.view;
+  world.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`;
+  canvas.style.setProperty('--x', v.x + 'px'); canvas.style.setProperty('--y', v.y + 'px'); canvas.style.setProperty('--k', v.k);
+  positionLinkPop(); save();
+}
+const toWorld = (cx, cy) => ({ x: (cx - map.view.x) / map.view.k, y: (cy - map.view.y) / map.view.k });
+function zoomAt(cx, cy, nk) {
+  nk = clamp(nk, 0.2, 2.5);
+  const v = map.view;
+  v.x = cx - (cx - v.x) * (nk / v.k); v.y = cy - (cy - v.y) * (nk / v.k); v.k = nk;
+  applyView();
+}
+function vis() {
+  const dw = !isMobile() && store.ui.drawer ? DRAWER_W : 0;
+  const sh = isMobile() && store.ui.drawer ? innerHeight * 0.58 : 0;
+  return { w: innerWidth - dw, h: innerHeight - sh };
+}
+let anim = null;
+function animateView(t, ms = 360) {
+  cancelAnimationFrame(anim);
+  if (reduceMotion) { Object.assign(map.view, t); applyView(); return; }
+  const v0 = { ...map.view }, t0 = performance.now();
+  const step = now => {
+    const p = clamp((now - t0) / ms, 0, 1), e = 1 - Math.pow(1 - p, 3);
+    map.view.x = v0.x + (t.x - v0.x) * e; map.view.y = v0.y + (t.y - v0.y) * e; map.view.k = v0.k + (t.k - v0.k) * e;
+    applyView();
+    if (p < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
+}
+function fit() {
+  const V = vis();
+  if (!map.cards.length) { animateView({ x: V.w / 2, y: V.h / 2, k: 1 }); return; }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const c of map.cards) {
+    const s = sizes.get(c.id) || { w: CARD_W, h: CARD_H };
+    x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); x1 = Math.max(x1, c.x + s.w); y1 = Math.max(y1, c.y + s.h);
+  }
+  const bw = x1 - x0, bh = y1 - y0;
+  const k = clamp(Math.min((V.w - 120) / bw, (V.h - 220) / bh), 0.25, 1.1);
+  animateView({ k, x: V.w / 2 - (x0 + bw / 2) * k, y: V.h / 2 - (y0 + bh / 2) * k - 10 });
+}
+function focusCard(id) {
+  const c = cardById(id); if (!c) return;
+  const s = sizes.get(id) || { w: CARD_W, h: CARD_H }, V = vis();
+  const k = clamp(map.view.k, 0.8, 1.1);
+  animateView({ k, x: V.w / 2 - (c.x + s.w / 2) * k, y: (isMobile() ? V.h * 0.5 : V.h / 2) - (c.y + s.h / 2) * k });
+}
+
+/* =========================================================================
+   描画：人物カード
+   ========================================================================= */
+function makeCardEl(id) {
+  return h('div', { class: 'card', tabindex: '0', 'data-id': id, role: 'group' },
+    h('div', { class: 'nm' }), h('div', { class: 'kana' }), h('div', { class: 'role' }), h('div', { class: 'sum' }),
+    ['t', 'r', 'b', 'l'].map(p => h('button', { class: 'handle h-' + p, type: 'button', tabindex: '-1', 'aria-hidden': 'true' })));
+}
+function updateCardEl(el, c) {
+  const col = colorOf(c.color);
+  el.style.setProperty('--c', col.hex); el.style.setProperty('--cf', col.fg);
+  el.style.transform = `translate(${c.x}px,${c.y}px)`;
+  if (el._name !== c.name) {
+    el._name = c.name;
+    const nm = $('.nm', el); nm.textContent = ''; nm.classList.toggle('empty', !c.name);
+    (c.name ? [...c.name] : ['', '', '']).forEach(ch => nm.append(h('span', { class: 'cell', text: ch.trim() ? ch : '' })));
+  }
+  const set = (sel_, v) => { const n = $(sel_, el); n.textContent = v; n.hidden = !v; };
+  set('.kana', c.kana); set('.role', c.role); set('.sum', c.sum);
+  el.setAttribute('aria-label', c.name || '名前のない人物');
+}
+function measure() { for (const [id, el] of cardEls) sizes.set(id, { w: el.offsetWidth, h: el.offsetHeight }); }
+function syncCards() {
+  const live = new Set(map.cards.map(c => c.id));
+  for (const [id, el] of cardEls) if (!live.has(id)) { el.remove(); cardEls.delete(id); sizes.delete(id); }
+  for (const c of map.cards) {
+    let el = cardEls.get(c.id);
+    if (!el) { el = makeCardEl(c.id); cardEls.set(c.id, el); cardsLayer.append(el); }
+    updateCardEl(el, c);
+  }
+  measure();
+}
+
+/* =========================================================================
+   描画：関係の糸と荷札
+   ========================================================================= */
+function syncLinks() {
+  const live = new Set(map.links.map(l => l.id));
+  for (const [id, g] of linkEls) if (!live.has(id)) { g.remove(); linkEls.delete(id); tagEls.get(id).remove(); tagEls.delete(id); linkMid.delete(id); }
+  for (const l of map.links) {
+    let g = linkEls.get(l.id);
+    if (!g) {
+      g = sv('g', { class: 'lk', 'data-id': l.id });
+      g.append(sv('path', { class: 'hit' }), sv('path', { class: 'ln' }), sv('path', { class: 'ah' }), sv('path', { class: 'ah' }));
+      linksSvg.append(g); linkEls.set(l.id, g);
+      const t = h('div', { class: 'ltag', 'data-id': l.id }); labelsLayer.append(t); tagEls.set(l.id, t);
+    }
+    const k = kindOf(l.kind), t = tagEls.get(l.id);
+    g.style.setProperty('--lc', k.color); t.style.setProperty('--lc', k.color);
+    t.textContent = l.label; t.classList.toggle('empty', !l.label);
+    t.setAttribute('aria-label', l.label ? `関係：${l.label}` : '関係（名前なし）');
+  }
+  drawLinks();
+}
+function center(c) { const s = sizes.get(c.id) || { w: CARD_W, h: CARD_H }; return { x: c.x + s.w / 2, y: c.y + s.h / 2, hw: s.w / 2, hh: s.h / 2 }; }
+function edgePoint(ct, tx, ty, pad = 5) {
+  const dx = tx - ct.x, dy = ty - ct.y;
+  if (!dx && !dy) return { x: ct.x, y: ct.y };
+  const t = Math.min((ct.hw + pad) / Math.abs(dx || 1e-6), (ct.hh + pad) / Math.abs(dy || 1e-6));
+  return { x: ct.x + dx * t, y: ct.y + dy * t };
+}
+function arrowD(tip, from) {
+  const dx = tip.x - from.x, dy = tip.y - from.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  const bx = tip.x - ux * 14, by = tip.y - uy * 14, px = -uy * 7, py = ux * 7;
+  return `M${tip.x} ${tip.y}L${bx + px} ${by + py}L${bx - px} ${by - py}Z`;
+}
+function drawLinks() {
+  const groups = new Map();
+  for (const l of map.links) {
+    const key = l.a < l.b ? l.a + '|' + l.b : l.b + '|' + l.a;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(l);
+  }
+  for (const arr of groups.values()) arr.forEach((l, i) => {
+    const A = cardById(l.a), B = cardById(l.b), g = linkEls.get(l.id);
+    if (!A || !B || !g) return;
+    const ca = center(A), cb = center(B), p = l.a < l.b ? ca : cb, q = l.a < l.b ? cb : ca;
+    const dx = q.x - p.x, dy = q.y - p.y, len = Math.hypot(dx, dy) || 1;
+    const off = (i - (arr.length - 1) / 2) * 70 + (arr.length === 1 ? 16 : 0);
+    const ctrl = { x: (p.x + q.x) / 2 + (-dy / len) * off * 2, y: (p.y + q.y) / 2 + (dx / len) * off * 2 };
+    const s0 = edgePoint(ca, ctrl.x, ctrl.y), e0 = edgePoint(cb, ctrl.x, ctrl.y);
+    const d = `M${s0.x} ${s0.y}Q${ctrl.x} ${ctrl.y} ${e0.x} ${e0.y}`, k = kindOf(l.kind);
+    const [hit, ln, ahA, ahB] = g.children;
+    hit.setAttribute('d', d); ln.setAttribute('d', d);
+    ln.setAttribute('stroke-width', l.id === sel.link ? k.w + 1.2 : k.w);
+    if (k.dash) ln.setAttribute('stroke-dasharray', k.dash); else ln.removeAttribute('stroke-dasharray');
+    ahB.setAttribute('d', l.dir === 'ab' || l.dir === 'both' ? arrowD(e0, ctrl) : '');
+    ahA.setAttribute('d', l.dir === 'ba' || l.dir === 'both' ? arrowD(s0, ctrl) : '');
+    const m = { x: .25 * s0.x + .5 * ctrl.x + .25 * e0.x, y: .25 * s0.y + .5 * ctrl.y + .25 * e0.y };
+    linkMid.set(l.id, m);
+    tagEls.get(l.id).style.transform = `translate(${m.x}px,${m.y}px) translate(-50%,-50%)`;
+  });
+  positionLinkPop();
+}
+
+/* =========================================================================
+   選択と「関係を強調」
+   ========================================================================= */
+function computeFocus() {
+  if (!store.ui.focus) return null;
+  const ids = new Set(), lids = new Set();
+  if (sel.link) { const l = linkById(sel.link); if (l) { ids.add(l.a); ids.add(l.b); lids.add(l.id); } return { ids, lids }; }
+  if (!sel.cards.size) return null;
+  sel.cards.forEach(id => ids.add(id));
+  for (const l of map.links) if (sel.cards.has(l.a) || sel.cards.has(l.b)) { ids.add(l.a); ids.add(l.b); lids.add(l.id); }
+  return { ids, lids };
+}
+function refreshState() {
+  const f = computeFocus();
+  for (const [id, el] of cardEls) { el.classList.toggle('sel', sel.cards.has(id)); el.classList.toggle('dim', !!f && !f.ids.has(id)); }
+  for (const [id, g] of linkEls) {
+    const on = sel.link === id, dim = !!f && !f.lids.has(id);
+    g.classList.toggle('sel', on); g.classList.toggle('dim', dim);
+    const t = tagEls.get(id); t.classList.toggle('sel', on); t.classList.toggle('dim', dim);
+  }
+  $('#focusBtn').setAttribute('aria-pressed', String(!!store.ui.focus));
+}
+function select(ids) {
+  sel.cards = new Set(ids); sel.link = null;
+  closeLinkPop(); refreshState(); renderDrawer(); drawLinks();
+}
+function selectLink(id) {
+  sel.cards = new Set(); sel.link = id;
+  refreshState(); renderDrawer(); drawLinks(); openLinkPop(id, { focus: true });
+}
+
+/* =========================================================================
+   人物・関係の操作
+   ========================================================================= */
+function addCard(wx, wy) {
+  const c = { id: uid(), x: Math.round(wx - CARD_W / 2), y: Math.round(wy - CARD_H / 2), name: '', kana: '', role: '', sum: '',
+    color: 'ai', fields: DEFAULT_FIELDS.map(k => ({ k, v: '' })), memo: '' };
+  tx(() => map.cards.push(c));
+  return c;
+}
+function popCard(id) { const el = cardEls.get(id); if (el && !reduceMotion) { el.classList.add('pop'); el.addEventListener('animationend', () => el.classList.remove('pop'), { once: true }); } }
+function createLink(a, b) {
+  const l = { id: uid(), a, b, label: '', kind: 'other', dir: 'none' };
+  tx(() => map.links.push(l));
+  return l;
+}
+function deleteSelection() {
+  if (sel.link) {
+    const id = sel.link; closeLinkPop();
+    tx(() => { map.links = map.links.filter(l => l.id !== id); });
+    sel.link = null; fullRender(); toast('関係の線を削除しました。', { label: '元に戻す', fn: undo }); return;
+  }
+  if (!sel.cards.size) return;
+  const ids = new Set(sel.cards), n = ids.size;
+  tx(() => { map.cards = map.cards.filter(c => !ids.has(c.id)); map.links = map.links.filter(l => !ids.has(l.a) && !ids.has(l.b)); });
+  sel.cards.clear(); fullRender();
+  toast(n === 1 ? '人物を削除しました。' : `${n}人を削除しました。`, { label: '元に戻す', fn: undo });
+}
+function addCardAtCenter() {
+  const V = vis(), w = toWorld(V.w / 2 + (Math.random() - .5) * 120, (isMobile() ? V.h / 2 : V.h / 2) + (Math.random() - .5) * 90);
+  const c = addCard(w.x, w.y);
+  select([c.id]); fullRender(); popCard(c.id); focusName(c.id);
+}
+
+/* =========================================================================
+   ポインタ操作（移動・ズーム・線を引く）
+   ========================================================================= */
+const pointers = new Map();
+let drag = null, lastTap = { t: 0, x: 0, y: 0, kind: '', id: '' };
+
+function cardAt(x, y, exclude) {
+  for (const el of document.elementsFromPoint(x, y)) if (el.classList && el.classList.contains('card') && el.dataset.id !== exclude) return el.dataset.id;
+  return null;
+}
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  closeMenus();
+  if (!(e.target.closest && e.target.closest('.ltag, .lk'))) closeLinkPop();
+  if (pointers.size === 2 && (!drag || drag.mode === 'pan' || drag.mode === 'marquee')) { startPinch(); return; }
+  if (pointers.size > 1) return;
+  cancelAnimationFrame(anim);
+  canvas.focus({ preventScroll: true });
+  const t = e.target, handle = t.closest('.handle'), cardEl = t.closest('.card'), tagEl = t.closest('.ltag'), lk = t.closest('.lk');
+  if (handle && cardEl) startLink(e, cardEl.dataset.id);
+  else if (cardEl) startCardDrag(e, cardEl.dataset.id);
+  else if (tagEl || lk) drag = { mode: 'linkclick', id: (tagEl || lk).dataset.id, sx: e.clientX, sy: e.clientY };
+  else drag = { mode: e.shiftKey ? 'marquee' : 'pan', sx: e.clientX, sy: e.clientY, vx: map.view.x, vy: map.view.y, moved: false, base: new Set(sel.cards) };
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  switch (drag.mode) {
+    case 'pan':
+      if (!drag.moved && Math.hypot(dx, dy) > 3) { drag.moved = true; canvas.classList.add('panning'); }
+      if (drag.moved) { map.view.x = drag.vx + dx; map.view.y = drag.vy + dy; applyView(); }
+      break;
+    case 'linkclick':
+      if (Math.hypot(dx, dy) > 5) drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: map.view.x, vy: map.view.y, moved: true }, canvas.classList.add('panning');
+      break;
+    case 'marquee': {
+      drag.moved = true;
+      const x0 = Math.min(drag.sx, e.clientX), y0 = Math.min(drag.sy, e.clientY), x1 = Math.max(drag.sx, e.clientX), y1 = Math.max(drag.sy, e.clientY);
+      Object.assign(marquee.style, { left: x0 + 'px', top: y0 + 'px', width: x1 - x0 + 'px', height: y1 - y0 + 'px' }); marquee.hidden = false;
+      const a = toWorld(x0, y0), b = toWorld(x1, y1), ids = new Set(drag.base);
+      for (const c of map.cards) { const s = sizes.get(c.id) || { w: CARD_W, h: CARD_H }; if (c.x < b.x && c.x + s.w > a.x && c.y < b.y && c.y + s.h > a.y) ids.add(c.id); }
+      sel.cards = ids; sel.link = null; refreshState();
+      break;
+    }
+    case 'card':
+      if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; drag.ids.forEach(id => cardEls.get(id).classList.add('dragging')); closeLinkPop(); }
+      if (drag.moved) {
+        const k = map.view.k;
+        for (const [id, o] of drag.start) { const c = cardById(id); c.x = Math.round(o.x + dx / k); c.y = Math.round(o.y + dy / k); cardEls.get(id).style.transform = `translate(${c.x}px,${c.y}px)`; }
+        drawLinks();
+      }
+      break;
+    case 'link': {
+      const w = toWorld(e.clientX, e.clientY), src = cardById(drag.from);
+      const s0 = edgePoint(center(src), w.x, w.y, 8);
+      draftPath.setAttribute('d', `M${s0.x} ${s0.y}L${w.x} ${w.y}`);
+      const target = cardAt(e.clientX, e.clientY, drag.from);
+      if (target !== drag.target) { if (drag.target && cardEls.get(drag.target)) cardEls.get(drag.target).classList.remove('drop'); if (target) cardEls.get(target).classList.add('drop'); drag.target = target; }
+      break;
+    }
+    case 'pinch': {
+      const pts = [...pointers.values()]; if (pts.length < 2) break;
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), cx = (pts[0].x + pts[1].x) / 2, cy = (pts[0].y + pts[1].y) / 2;
+      const k = clamp(drag.k0 * d / drag.d0, 0.2, 2.5);
+      map.view.k = k; map.view.x = cx - drag.wx * k; map.view.y = cy - drag.wy * k; applyView();
+      break;
+    }
+  }
+});
+
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (drag && drag.mode === 'pinch') { if (pointers.size < 2) drag = null; return; }
+  const d = drag; drag = null;
+  canvas.classList.remove('panning', 'linking'); marquee.hidden = true;
+  if (!d || e.type === 'pointercancel') { draft.classList.remove('on'); return; }
+  const now = performance.now();
+  switch (d.mode) {
+    case 'pan':
+      if (!d.moved) {
+        if (now - lastTap.t < 350 && lastTap.kind === 'bg' && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 28) {
+          lastTap = { t: 0, kind: '' };
+          const w = toWorld(e.clientX, e.clientY), c = addCard(w.x, w.y);
+          select([c.id]); fullRender(); popCard(c.id); focusName(c.id);
+        } else {
+          lastTap = { t: now, x: e.clientX, y: e.clientY, kind: 'bg' };
+          if (sel.cards.size || sel.link) select([]);
+        }
+      } else save();
+      break;
+    case 'marquee': if (!d.moved) select([]); else { renderDrawer(); } break;
+    case 'card':
+      drag = null; d.ids.forEach(id => cardEls.get(id) && cardEls.get(id).classList.remove('dragging'));
+      if (d.moved) commit();
+      else {
+        if (d.toggleOff) { const s = new Set(sel.cards); s.delete(d.id); select([...s]); }
+        else if (d.collapse) select([d.id]);
+        if (now - lastTap.t < 350 && lastTap.kind === 'card' && lastTap.id === d.id) { lastTap = { t: 0, kind: '' }; select([d.id]); focusName(d.id); }
+        else lastTap = { t: now, kind: 'card', id: d.id, x: e.clientX, y: e.clientY };
+      }
+      break;
+    case 'link': finishLink(e, d); break;
+    case 'linkclick': selectLink(d.id); break;
+  }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+
+function startCardDrag(e, id) {
+  const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+  let toggleOff = false, collapse = false;
+  if (additive) { if (sel.cards.has(id)) toggleOff = true; else { sel.cards.add(id); sel.link = null; refreshState(); renderDrawer(); } }
+  else if (!sel.cards.has(id)) select([id]);
+  else if (sel.cards.size > 1) collapse = true;
+  const ids = [...sel.cards].filter(i => cardById(i));
+  const start = new Map(ids.map(i => { const c = cardById(i); return [i, { x: c.x, y: c.y }]; }));
+  drag = { mode: 'card', id, sx: e.clientX, sy: e.clientY, ids, start, moved: false, toggleOff, collapse };
+}
+function startLink(e, id) {
+  select([id]);
+  drag = { mode: 'link', from: id, sx: e.clientX, sy: e.clientY, target: null };
+  canvas.classList.add('linking'); draft.classList.add('on'); draftPath.setAttribute('d', '');
+}
+function finishLink(e, d) {
+  draft.classList.remove('on'); draftPath.setAttribute('d', '');
+  if (d.target && cardEls.get(d.target)) cardEls.get(d.target).classList.remove('drop');
+  const target = cardAt(e.clientX, e.clientY, d.from);
+  if (target) {
+    const l = createLink(d.from, target);
+    sel.cards = new Set(); sel.link = l.id; fullRender(); openLinkPop(l.id, { focus: true });
+  } else if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 60) {
+    const w = toWorld(e.clientX, e.clientY); let l, c;
+    tx(() => { c = addCard(w.x, w.y); l = createLink(d.from, c.id); });
+    sel.cards = new Set(); sel.link = l.id; fullRender(); popCard(c.id);
+    openLinkPop(l.id, { focus: true, chain: c.id });
+  }
+}
+function startPinch() {
+  const pts = [...pointers.values()], cx = (pts[0].x + pts[1].x) / 2, cy = (pts[0].y + pts[1].y) / 2;
+  const w = toWorld(cx, cy);
+  drag = { mode: 'pinch', d0: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1, k0: map.view.k, wx: w.x, wy: w.y };
+  canvas.classList.remove('panning'); marquee.hidden = true;
+}
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const m = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1, dx = e.deltaX * m, dy = e.deltaY * m;
+  if (e.ctrlKey || (store.ui.wheel === 'zoom' && !e.shiftKey)) zoomAt(e.clientX, e.clientY, map.view.k * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0016)));
+  else { map.view.x -= e.shiftKey ? dy : dx; map.view.y -= e.shiftKey ? 0 : dy; applyView(); }
+}, { passive: false });
+
+/* =========================================================================
+   関係の編集ポップオーバー
+   ========================================================================= */
+let popLink = null, popChain = null;
+const shortName = c => { const n = (c && c.name) || '名前なし'; return n.length > 6 ? n.slice(0, 6) + '…' : n; };
+
+function openLinkPop(id, { focus = true, chain = null } = {}) {
+  const l = linkById(id); if (!l) return;
+  popLink = id; popChain = chain;
+  const A = cardById(l.a), B = cardById(l.b);
+  const label = h('input', { type: 'text', class: 'pop-label', placeholder: '関係の名前（例：幼なじみ）', maxlength: '40', value: l.label, 'aria-label': '関係の名前' });
+  label.addEventListener('input', () => { l.label = label.value; syncLinks(); refreshState(); typingCommit(); updateRelationRows(); });
+  label.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === 'Escape') { ev.preventDefault(); finishPop(); } });
+  const chips = h('div', { class: 'group', role: 'group', 'aria-label': '関係の種類' });
+  const paintChips = () => $$all('.kchip', chips).forEach(b => b.classList.toggle('on', b.dataset.k === l.kind));
+  KINDS.forEach(k => chips.append(h('button', { type: 'button', class: 'kchip' + (l.kind === k.id ? ' on' : ''), 'data-k': k.id, style: `--lc:${k.color}`,
+    onclick: () => {
+      l.kind = k.id; if (!l.label && k.id !== 'other') { l.label = k.name; label.value = k.name; }
+      commit(); syncLinks(); refreshState(); paintChips(); renderRelationsOnly();
+    } }, h('i'), k.name)));
+  const dirs = h('div', { class: 'dirs', role: 'group', 'aria-label': '矢印' });
+  const paintDirs = () => $$all('button', dirs).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === l.dir)));
+  [['none', '矢印なし'], ['ab', `${shortName(A)}→${shortName(B)}`], ['ba', `${shortName(A)}←${shortName(B)}`], ['both', '↔ 双方向']].forEach(([d, t]) =>
+    dirs.append(h('button', { type: 'button', 'data-d': d, 'aria-pressed': String(l.dir === d), onclick: () => { l.dir = d; commit(); drawLinks(); paintDirs(); renderRelationsOnly(); } }, t)));
+  linkPop.textContent = '';
+  linkPop.append(label, chips, dirs, h('button', { type: 'button', class: 'del', onclick: () => { deleteSelection(); } }, 'この関係を削除'));
+  linkPop.hidden = false; positionLinkPop();
+  if (focus) { label.focus(); label.select(); }
+}
+const $$all = (s, r = document) => [...r.querySelectorAll(s)];
+function positionLinkPop() {
+  if (!popLink || linkPop.hidden) return;
+  const m = linkMid.get(popLink); if (!m) return;
+  const v = map.view, sx = m.x * v.k + v.x, sy = m.y * v.k + v.y, W = linkPop.offsetWidth || 310, H = linkPop.offsetHeight || 180;
+  const maxX = innerWidth - (isMobile() ? 0 : (store.ui.drawer ? DRAWER_W : 0)) - W - 8;
+  let top = sy + 20; if (top + H > innerHeight - 8) top = Math.max(8, sy - H - 20);
+  linkPop.style.left = clamp(sx - W / 2, 8, Math.max(8, maxX)) + 'px'; linkPop.style.top = top + 'px';
+}
+function closeLinkPop() { linkPop.hidden = true; popLink = null; popChain = null; }
+function finishPop() {
+  const chain = popChain; closeLinkPop(); flushCommit(); commit();
+  if (chain && cardById(chain)) { sel.link = null; select([chain]); focusName(chain); } else canvas.focus({ preventScroll: true });
+}
+
+/* =========================================================================
+   右の人物カード欄
+   ========================================================================= */
+function setDrawer(open) {
+  store.ui.drawer = open;
+  document.body.classList.toggle('drawer-open', open);
+  document.body.style.setProperty('--dw', open && !isMobile() ? DRAWER_W + 'px' : '0px');
+  $('#drawerBtn').hidden = open; save(); positionLinkPop();
+}
+function focusName(id) {
+  if (!store.ui.drawer) setDrawer(true);
+  if (!(sel.cards.size === 1 && sel.cards.has(id))) select([id]);
+  if (isMobile()) { const c = cardById(id), v = map.view; if (c && (c.y + CARD_H) * v.k + v.y > innerHeight * 0.38) animateView({ k: v.k, x: v.x, y: innerHeight * 0.2 - c.y * v.k }); }
+  requestAnimationFrame(() => { const i = $('[data-role=name]', drBody); if (i) { i.focus(); i.select(); } });
+}
+function renderDrawer() {
+  const top = drBody.scrollTop;
+  drBody.textContent = '';
+  if (sel.cards.size === 1) drawerCard(cardById([...sel.cards][0]));
+  else if (sel.cards.size > 1) drawerMulti();
+  else drawerList();
+  drBody.scrollTop = top;
+}
+function onCardEdited() { syncCards(); drawLinks(); renderLegend(); typingCommit(); }
+
+function textField(label, get, set, { multi = false, ph = '', cls = '', role = '' } = {}) {
+  const el = multi ? h('textarea', { rows: '2', placeholder: ph, class: cls }) : h('input', { type: 'text', placeholder: ph, class: cls });
+  el.value = get(); if (role) el.setAttribute('data-role', role);
+  el.addEventListener('input', () => { set(el.value); if (multi) autosize(el); onCardEdited(); updateRelationRows(); });
+  if (multi) requestAnimationFrame(() => autosize(el));
+  return h('label', { class: 'fld' }, h('span', { class: 'fl', text: label }), el);
+}
+function drawerCard(c) {
+  drTitle.textContent = '人物カード';
+  const sw = h('div', { class: 'colors', role: 'radiogroup', 'aria-label': '色' });
+  COLORS.forEach(col => sw.append(h('button', { type: 'button', class: 'sw' + (c.color === col.id ? ' on' : ''), style: `--sw:${col.hex}`, title: col.name, role: 'radio', 'aria-label': col.name, 'aria-checked': String(c.color === col.id), 'data-c': col.id,
+    onclick: () => { c.color = col.id; $$all('.sw', sw).forEach(b => { const on = b.dataset.c === c.color; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }); commit(); syncCards(); renderLegend(); renderRelationsOnly(); } })));
+  drBody.append(sw,
+    textField('名前', () => c.name, v => { c.name = v; }, { cls: 'name', ph: '名前', role: 'name' }),
+    textField('よみ', () => c.kana, v => { c.kana = v; }, { ph: 'ふりがな' }),
+    textField('役割・肩書き', () => c.role, v => { c.role = v; }, { ph: '例：主人公／王女／探偵' }),
+    textField('一言（カードに表示されます）', () => c.sum, v => { c.sum = v; }, { multi: true, ph: '例：夜の図書館で働く見習い司書。' }));
+
+  const fields = h('div');
+  const renderFields = (focusLast = false) => {
+    fields.textContent = '';
+    c.fields.forEach((f, i) => {
+      const ta = h('textarea', { rows: '2' }); ta.value = f.v; ta.setAttribute('aria-label', f.k || '項目');
+      ta.addEventListener('input', () => { f.v = ta.value; autosize(ta); typingCommit(); });
+      const nm = h('input', { type: 'text', value: f.k, placeholder: '項目名', 'aria-label': '項目名' });
+      nm.addEventListener('input', () => { f.k = nm.value; ta.setAttribute('aria-label', f.k || '項目'); typingCommit(); });
+      fields.append(h('div', { class: 'cf' },
+        h('div', { class: 'cf-head' }, nm, h('button', { type: 'button', class: 'x', 'aria-label': `${f.k || '項目'}を削除`, title: 'この項目を削除', onclick: () => { c.fields.splice(i, 1); commit(); renderFields(); } }, '×')), ta));
+      requestAnimationFrame(() => autosize(ta));
+      if (focusLast && i === c.fields.length - 1) nm.focus();
+    });
+  };
+  renderFields();
+  const memo = h('textarea', { class: 'memo', rows: '5', placeholder: '設定・エピソード・セリフの癖など、自由に書けます。' }); memo.value = c.memo;
+  memo.addEventListener('input', () => { c.memo = memo.value; autosize(memo); typingCommit(); });
+  requestAnimationFrame(() => autosize(memo));
+
+  drBody.append(h('div', { class: 'sec', text: '設定' }), fields,
+    h('button', { type: 'button', class: 'add-btn', onclick: () => { c.fields.push({ k: '', v: '' }); commit(); renderFields(true); } }, '項目を追加'),
+    h('div', { class: 'sec', text: 'メモ' }), memo,
+    h('div', { class: 'sec', text: '関係' }), h('div', { id: 'rels' }),
+    h('button', { type: 'button', class: 'danger-btn', onclick: deleteSelection }, 'この人物を削除'));
+  renderRelationsOnly();
+}
+function relRowsFor(c) {
+  return map.links.filter(l => l.a === c.id || l.b === c.id).map(l => {
+    const otherId = l.a === c.id ? l.b : l.a, o = cardById(otherId), k = kindOf(l.kind);
+    const arrow = l.dir === 'both' ? '↔' : l.dir === 'none' ? '―' : ((l.dir === 'ab') === (l.a === c.id) ? '→' : '←');
+    const input = h('input', { type: 'text', value: l.label, placeholder: '関係の名前', 'aria-label': `${shortName(o)}との関係`, 'data-lid': l.id });
+    input.addEventListener('input', () => { l.label = input.value; syncLinks(); refreshState(); typingCommit(); });
+    return h('div', { class: 'rel', style: `--lc:${k.color}` }, h('i'), h('span', { class: 'ar', text: arrow }),
+      h('button', { type: 'button', class: 'who', title: 'この人物へ移動', onclick: () => { select([otherId]); focusCard(otherId); } }, shortName(o)), input);
+  });
+}
+function renderRelationsOnly() {
+  const box = $('#rels', drBody); if (!box || sel.cards.size !== 1) return;
+  const c = cardById([...sel.cards][0]); if (!c) return;
+  box.textContent = '';
+  const rows = relRowsFor(c);
+  if (rows.length) box.append(...rows); else box.append(h('p', { class: 'muted', text: 'まだ関係がありません。カードのふちの丸い点から線を引くか、下から追加できます。' }));
+  const others = map.cards.filter(o => o.id !== c.id);
+  if (others.length) {
+    const selEl = h('select', { 'aria-label': '関係を追加する相手' }, others.map(o => h('option', { value: o.id, text: o.name || '名前のない人物' })));
+    box.append(h('div', { class: 'relnew' }, selEl, h('button', { type: 'button', class: 'add-btn', onclick: () => {
+      const l = createLink(c.id, selEl.value); sel.link = l.id; sel.cards = new Set(); fullRender(); openLinkPop(l.id, { focus: true });
+    } }, '関係を追加')));
+  }
+}
+function updateRelationRows() {
+  if (sel.cards.size !== 1) return;
+  const c = cardById([...sel.cards][0]); if (!c) return;
+  $$all('#rels .rel', drBody).forEach(row => {
+    const inp = $('input', row), l = linkById(inp.dataset.lid); if (!l) return;
+    if (document.activeElement !== inp) inp.value = l.label;
+    const o = cardById(l.a === c.id ? l.b : l.a); $('.who', row).textContent = shortName(o);
+  });
+}
+function drawerMulti() {
+  drTitle.textContent = `${sel.cards.size}人を選択中`;
+  const sw = h('div', { class: 'colors' });
+  COLORS.forEach(col => sw.append(h('button', { type: 'button', class: 'sw', style: `--sw:${col.hex}`, title: `まとめて${col.name}にする`, 'aria-label': `まとめて${col.name}にする`,
+    onclick: () => { tx(() => sel.cards.forEach(id => { cardById(id).color = col.id; })); syncCards(); renderLegend(); } })));
+  drBody.append(h('p', { class: 'muted', text: '色を選ぶと、選んだ人物をまとめて同じ色にします。' }), sw,
+    h('button', { type: 'button', class: 'danger-btn', onclick: deleteSelection }, '選んだ人物を削除'));
+}
+function drawerList() {
+  drTitle.textContent = '人物一覧';
+  const q = h('input', { type: 'search', placeholder: '名前・役割で探す', 'aria-label': '人物を探す' }), ul = h('ul', { class: 'plist' });
+  const fill = () => {
+    ul.textContent = ''; const t = q.value.trim().toLowerCase();
+    const items = map.cards.filter(c => !t || (c.name + c.kana + c.role).toLowerCase().includes(t));
+    if (!items.length) ul.append(h('li', { class: 'muted', text: map.cards.length ? '見つかりませんでした。' : 'まだ人物がいません。' }));
+    items.forEach(c => ul.append(h('li', null, h('button', { type: 'button', class: 'prow', onclick: () => { select([c.id]); focusCard(c.id); } },
+      h('i', { style: `background:${colorOf(c.color).hex}` }), h('span', { class: 'pn', text: c.name || '名前のない人物' }), h('span', { class: 'pr', text: c.role })))));
+  };
+  q.addEventListener('input', fill); fill();
+  drBody.append(q, ul, h('ul', { class: 'tips' },
+    h('li', { text: '何もないところをダブルクリック（ダブルタップ）で、人物を置けます。' }),
+    h('li', { text: 'カードのふちの丸い点から別のカードへドラッグすると、関係の線がつながります。' }),
+    h('li', { text: '線を何もないところまで引くと、つながった新しい人物ができます。' }),
+    h('li', { text: '線や荷札をクリックして、関係の名前・種類・矢印を決めます。' }),
+    h('li', { text: 'Shift を押しながらドラッグで、まとめて選べます。' })));
+}
+
+/* =========================================================================
+   凡例（色の意味）
+   ========================================================================= */
+let legendOpen = false;
+function renderLegend(force = false) {
+  const legend = $('#legend'), used = COLORS.filter(c => map.cards.some(k => k.color === c.id));
+  if (used.length < 2) { legend.hidden = true; return; }
+  if (!force && legend.contains(document.activeElement)) return;   // 入力中は作り直さない
+  legend.textContent = '';
+  const named = used.filter(c => map.legend[c.id]);
+  (legendOpen ? used : named).forEach(c => {
+    const inp = h('input', { type: 'text', value: map.legend[c.id] || '', placeholder: '色の意味を書く', maxlength: '30', 'aria-label': `${c.name}の意味` });
+    inp.addEventListener('input', () => { map.legend[c.id] = inp.value; typingCommit(); });
+    legend.append(h('label', { class: 'lg', style: `--lc:${c.hex}` }, h('i'), inp));
+  });
+  legend.append(h('button', { type: 'button', class: 'lg-toggle', onclick: () => { legendOpen = !legendOpen; renderLegend(true); const t = $('.lg-toggle', legend); if (t) t.focus(); } },
+    legendOpen ? '色の意味を閉じる' : (named.length ? '色の意味を編集' : '色の意味を書く')));
+  legend.hidden = false;
+}
+
+/* =========================================================================
+   並べ直す（つながりの近い人物を近くへ）
+   ========================================================================= */
+let relaxing = false;
+function relax() {
+  const cs = map.cards;
+  if (cs.length < 2) { toast('人物が2人以上いると、並べ直せます。'); return; }
+  if (relaxing) return;
+  relaxing = true; closeLinkPop();
+  const P = cs.map(c => { const s = sizes.get(c.id) || { w: CARD_W, h: CARD_H }; return { c, w: s.w, h: s.h, x: c.x + s.w / 2 + (Math.random() - .5) * 6, y: c.y + s.h / 2 + (Math.random() - .5) * 6, vx: 0, vy: 0 }; });
+  const idx = new Map(P.map(p => [p.c.id, p]));
+  const L = map.links.map(l => [idx.get(l.a), idx.get(l.b)]).filter(([a, b]) => a && b);
+  const cx0 = P.reduce((s, p) => s + p.x, 0) / P.length, cy0 = P.reduce((s, p) => s + p.y, 0) / P.length;
+  const total = 220; let it = 0;
+  const step = () => {
+    const alpha = 1 - it / total;
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+      const a = P[i], b = P[j]; let dx = b.x - a.x, dy = b.y - a.y; const d2 = dx * dx + dy * dy || 1, d = Math.sqrt(d2);
+      const f = 52000 / d2 * alpha; dx /= d; dy /= d; a.vx -= dx * f; a.vy -= dy * f; b.vx += dx * f; b.vy += dy * f;
+      const ox = (a.w + b.w) / 2 + 36 - Math.abs(b.x - a.x), oy = (a.h + b.h) / 2 + 36 - Math.abs(b.y - a.y);
+      if (ox > 0 && oy > 0) { if (ox < oy) { const s = (b.x >= a.x ? 1 : -1) * ox * .25; a.x -= s; b.x += s; } else { const s = (b.y >= a.y ? 1 : -1) * oy * .25; a.y -= s; b.y += s; } }
+    }
+    for (const [a, b] of L) { const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, f = (d - 330) * 0.02; a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f; }
+    for (const p of P) { p.vx *= .8; p.vy *= .8; p.x += p.vx; p.y += p.vy; }
+    const mx = P.reduce((s, p) => s + p.x, 0) / P.length - cx0, my = P.reduce((s, p) => s + p.y, 0) / P.length - cy0;
+    for (const p of P) { p.x -= mx; p.y -= my; p.c.x = Math.round(p.x - p.w / 2); p.c.y = Math.round(p.y - p.h / 2); cardEls.get(p.c.id).style.transform = `translate(${p.c.x}px,${p.c.y}px)`; }
+    drawLinks();
+    if (++it < total) requestAnimationFrame(step); else { relaxing = false; commit(); fit(); }
+  };
+  requestAnimationFrame(step);
+}
+
+/* =========================================================================
+   マップの管理・書き出し・読み込み
+   ========================================================================= */
+function applyMapToUI() {
+  $('#mapName').value = map.name; document.title = `${map.name || '人物マップ'}｜人物マップ`;
+  sel.cards.clear(); sel.link = null; closeLinkPop();
+  for (const el of cardEls.values()) el.remove(); cardEls.clear();
+  for (const g of linkEls.values()) g.remove(); linkEls.clear();
+  for (const t of tagEls.values()) t.remove(); tagEls.clear();
+  sizes.clear(); linkMid.clear();
+  applyView(); fullRender(); resetHistory();
+}
+function switchMap(id) {
+  flushCommit(); const m = store.maps.find(x => x.id === id); if (!m) return;
+  map = m; store.current = id; applyMapToUI(); save();
+}
+function newMapAction() {
+  flushCommit(); const m = emptyMap('名前のないマップ'); const V = vis(); m.view = { x: V.w / 2, y: V.h / 2, k: 1 };
+  store.maps.push(m); switchMap(m.id); closeMenus(); $('#mapName').focus(); $('#mapName').select();
+}
+function deleteMapAction() {
+  closeMenus();
+  if (!confirm(`「${map.name || '名前のないマップ'}」を削除します。この操作は元に戻せません。よろしいですか？`)) return;
+  store.maps = store.maps.filter(m => m.id !== map.id);
+  if (!store.maps.length) { const m = emptyMap('名前のないマップ'); const V = vis(); m.view = { x: V.w / 2, y: V.h / 2, k: 1 }; store.maps.push(m); }
+  map = store.maps[0]; store.current = map.id; applyMapToUI(); save(); toast('マップを削除しました。');
+}
+function renderMapMenu() {
+  mapMenu.textContent = '';
+  store.maps.forEach(m => mapMenu.append(h('button', { type: 'button', class: 'mi' + (m.id === map.id ? ' on' : ''), onclick: () => { switchMap(m.id); closeMenus(); } },
+    h('span', { text: m.name || '名前のないマップ' }), h('small', { text: `${m.cards.length}人` }))));
+  mapMenu.append(h('hr'), h('button', { type: 'button', onclick: newMapAction }, '新しいマップをつくる'),
+    h('button', { type: 'button', class: 'danger', onclick: deleteMapAction }, 'このマップを削除'));
+}
+function exportMap() {
+  flushCommit(); writeNow();
+  const data = { app: 'jinbutsu-map', v: 1, maps: [map] };
+  const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+  const a = h('a', { href: URL.createObjectURL(blob), download: (map.name || '人物マップ').replace(/[\\/:*?"<>|]/g, '_') + '.json' });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  closeMenus(); toast('書き出しました。');
+}
+function importFile(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const o = JSON.parse(r.result);
+      const list = Array.isArray(o.maps) ? o.maps : (Array.isArray(o.cards) ? [o] : null);
+      if (!list || !list.length) throw new Error('形式');
+      const added = list.map(m => { const n = normalizeMap(m); n.id = uid(); return n; });
+      added.forEach(m => store.maps.push(m)); switchMap(added[0].id); fit();
+      toast(`読み込みました（${added.length}マップ）。`);
+    } catch (e) { toast('読み込めませんでした。このツールで書き出した .json を選んでください。'); }
+  };
+  r.readAsText(file);
+}
+function loadSample() {
+  const mk = (name, kana, role, sum, color, x, y, fields) => ({ id: uid(), x, y, name, kana, role, sum, color,
+    fields: DEFAULT_FIELDS.map(k => ({ k, v: (fields && fields[k]) || '' })), memo: '' });
+  const akari = mk('灯', 'あかり', '主人公', '夜の図書館で働く見習い司書。本の中の声が聞こえる。', 'ai', -116, -60, { 外見: '栗色の短い髪。袖の長すぎる制服。', 性格: '好奇心が強く、頑固。' });
+  const souma = mk('蒼真', 'そうま', '幼なじみ', '灯を追って王都へ出てきた。', 'sora', -520, -230);
+  const mina = mk('ミナ', '', '灯の妹', '', 'wakatake', -520, 120);
+  const noel = mk('ノエル', '', '老司書', '灯の師匠。禁書庫の鍵を持つ。', 'fuji', 270, -250);
+  const kuro = mk('黒川', 'くろかわ', '宿敵', '禁書を集める蔵書家。', 'shu', 290, 120);
+  const rena = mk('玲奈', 'れな', '学院の首席', '', 'sakura', -230, -450);
+  const L = (a, b, label, kind, dir = 'none') => ({ id: uid(), a: a.id, b: b.id, label, kind, dir });
+  tx(() => {
+    map.cards = [akari, souma, mina, noel, kuro, rena];
+    map.links = [L(akari, souma, '幼なじみ', 'friend'), L(souma, akari, '片思い', 'love', 'ab'), L(akari, mina, '姉妹', 'family'),
+      L(akari, noel, '師弟', 'master'), L(akari, kuro, '宿敵', 'enemy'), L(rena, souma, '好敵手', 'rival', 'both'), L(kuro, noel, 'かつての同門', 'secret')];
+  });
+  select([]); fullRender(); fit();
+}
+
+/* =========================================================================
+   メニュー・通知
+   ========================================================================= */
+function closeMenus() {
+  mapMenu.hidden = true; fileMenu.hidden = true;
+  $('#mapMenuBtn').setAttribute('aria-expanded', 'false'); $('#fileBtn').setAttribute('aria-expanded', 'false');
+}
+function openMenu(menu, btn, rightAlign) {
+  const was = !menu.hidden; closeMenus(); closeLinkPop();
+  if (was) return;
+  if (menu === mapMenu) renderMapMenu();
+  menu.hidden = false; btn.setAttribute('aria-expanded', 'true');
+  const r = btn.getBoundingClientRect();
+  menu.style.top = r.bottom + 6 + 'px';
+  if (rightAlign) { menu.style.left = 'auto'; menu.style.right = Math.max(8, innerWidth - r.right) + 'px'; }
+  else { menu.style.right = 'auto'; menu.style.left = Math.max(8, r.left) + 'px'; }
+}
+let toastTimer = null;
+function toast(msg, action) {
+  const t = $('#toast'); t.textContent = '';
+  t.append(h('span', { text: msg }));
+  if (action) t.append(h('button', { type: 'button', onclick: () => { t.hidden = true; action.fn(); } }, action.label));
+  t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, action ? 6000 : 3500);
+}
+
+/* =========================================================================
+   全体の再描画
+   ========================================================================= */
+function fullRender() {
+  syncCards(); syncLinks(); refreshState(); renderDrawer(); renderLegend();
+  $('#empty').hidden = map.cards.length > 0; updateUndoUI();
+}
+
+/* =========================================================================
+   ボタン・キーボード
+   ========================================================================= */
+$('#addBtn').onclick = addCardAtCenter;
+$('#relaxBtn').onclick = relax;
+$('#focusBtn').onclick = () => { store.ui.focus = !store.ui.focus; refreshState(); save(); };
+$('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
+$('#zoomIn').onclick = () => { const V = vis(); zoomAt(V.w / 2, V.h / 2, map.view.k * 1.25); };
+$('#zoomOut').onclick = () => { const V = vis(); zoomAt(V.w / 2, V.h / 2, map.view.k / 1.25); };
+$('#zoomLabel').onclick = fit;
+$('#sampleBtn').onclick = loadSample;
+$('#drClose').onclick = () => setDrawer(false);
+$('#drawerBtn').onclick = () => setDrawer(true);
+$('#mapMenuBtn').onclick = e => { e.stopPropagation(); openMenu(mapMenu, e.currentTarget, false); };
+$('#fileBtn').onclick = e => { e.stopPropagation(); openMenu(fileMenu, e.currentTarget, true); paintWheel(); };
+$('#exportBtn').onclick = exportMap;
+$('#importBtn').onclick = () => { closeMenus(); $('#fileInput').click(); };
+$('#fileInput').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
+function paintWheel() { $$all('[data-wheel]', fileMenu).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.wheel === store.ui.wheel))); }
+$$all('[data-wheel]', fileMenu).forEach(b => b.onclick = () => { store.ui.wheel = b.dataset.wheel; paintWheel(); save(); });
+$('#mapName').addEventListener('input', e => { map.name = e.target.value; document.title = `${map.name || '人物マップ'}｜人物マップ`; save(); });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.menu, #mapMenuBtn, #fileBtn')) closeMenus(); }, true);
+
+document.addEventListener('keydown', e => {
+  const tag = e.target.tagName, typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
+  if (e.key === 'Escape') { if (!linkPop.hidden) { finishPop(); return; } closeMenus(); if (!typing) select([]); return; }
+  if (typing) return;
+  const mod = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+  if (mod && key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if (mod && key === 'y') { e.preventDefault(); redo(); }
+  else if (mod && key === 'a') { e.preventDefault(); select(map.cards.map(c => c.id)); }
+  else if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.link || sel.cards.size) { e.preventDefault(); deleteSelection(); } }
+  else if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('card')) { e.preventDefault(); select([e.target.dataset.id]); focusName(e.target.dataset.id); }
+  else if (!mod && key === 'n') { e.preventDefault(); addCardAtCenter(); }
+  else if (!mod && key === 'f') { e.preventDefault(); fit(); }
+  else if (!mod && (e.key === '+' || e.key === '=')) { $('#zoomIn').click(); }
+  else if (!mod && (e.key === '-' || e.key === '_')) { $('#zoomOut').click(); }
+  else if (e.key.startsWith('Arrow') && sel.cards.size) {
+    e.preventDefault();
+    const st = e.shiftKey ? 50 : 10, dx = e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy = e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0;
+    sel.cards.forEach(id => { const c = cardById(id); c.x += dx; c.y += dy; cardEls.get(id).style.transform = `translate(${c.x}px,${c.y}px)`; });
+    drawLinks(); typingCommit();
+  }
+});
+addEventListener('resize', () => { setDrawer(!!store.ui.drawer); positionLinkPop(); });
+
+/* =========================================================================
+   起動
+   ========================================================================= */
+setDrawer(store.ui.drawer == null ? !isMobile() : !!store.ui.drawer);
+applyMapToUI();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measure(); drawLinks(); });
+})();
+</script>
+</body>
+</html>
