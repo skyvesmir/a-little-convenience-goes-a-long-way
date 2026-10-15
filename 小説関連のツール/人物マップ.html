@@ -80,7 +80,8 @@ button{ font-family:inherit; color:inherit; }
 .card.pop{ animation:pop .22s ease-out; }
 @keyframes pop{ from{ opacity:0; scale:.88; } to{ opacity:1; scale:1; } }
 
-.nm{ display:flex; flex-wrap:wrap; font-family:var(--mincho); }        /* 原稿用紙のマス目 */
+.head{ display:flex; align-items:flex-start; gap:10px; }
+.nm{ flex:1; min-width:0; display:flex; flex-wrap:wrap; font-family:var(--mincho); }        /* 原稿用紙のマス目 */
 .cell{
   width:28px; height:31px; display:grid; place-items:center;
   margin:0 -1px -1px 0; background:#fff;
@@ -291,7 +292,7 @@ body.drawer-open #drawer{ transform:none; }
 .relnew{ display:flex; gap:6px; margin-top:10px; }
 .relnew select{ flex:1; min-width:0; }
 .muted{ margin:6px 0; font-size:13px; color:var(--sub); }
-.danger-btn{ margin-top:26px; padding:8px 14px; font:700 13px var(--ui); color:var(--danger); background:transparent; border:1px solid var(--danger); border-radius:8px; cursor:pointer; }
+.danger-btn{ display:block; margin-top:26px; padding:8px 14px; font:700 13px var(--ui); color:var(--danger); background:transparent; border:1px solid var(--danger); border-radius:8px; cursor:pointer; }
 .plist{ list-style:none; margin:10px 0 0; padding:0; }
 .prow{ display:flex; align-items:center; gap:10px; width:100%; padding:8px 6px; text-align:left; background:transparent; border:0; border-bottom:1px solid var(--rule); cursor:pointer; }
 .prow:hover{ background:#eaeff6; }
@@ -300,6 +301,81 @@ body.drawer-open #drawer{ transform:none; }
 .prow .pr{ margin-left:auto; font-size:12px; color:var(--sub); }
 .tips{ margin:22px 0 0; padding:0; list-style:none; font-size:13px; line-height:1.75; color:var(--sub); }
 .tips li{ padding:5px 0 5px 14px; border-left:3px solid var(--rule); margin-bottom:6px; }
+
+/* ---------- プロフィール画像 ---------- */
+.av{ flex:none; width:58px; height:58px; background:#fff; border:1px solid var(--cellline); border-radius:4px; overflow:hidden; }
+.av img{ display:block; width:100%; height:100%; object-fit:cover; pointer-events:none; }
+.imgbox{ display:flex; gap:12px; align-items:flex-start; margin-bottom:14px; }
+.imgprev{ flex:none; width:84px; height:84px; display:grid; place-items:center; overflow:hidden; font-size:12px; color:var(--sub); background:#fff; border:1px solid var(--rule); border-radius:6px; }
+.imgprev.none{ border-style:dashed; }
+.imgprev img{ display:block; width:100%; height:100%; object-fit:cover; }
+.imgctl{ flex:1; min-width:0; }
+.imgbtns{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-bottom:6px; }
+.imgrange{ display:block; }
+.imgrange input{ width:100%; }
+.x-btn{ padding:6px 4px; font:700 12.5px var(--ui); color:var(--danger); background:transparent; border:0; cursor:pointer; }
+.pimg{ flex:none; width:22px; height:22px; border-radius:4px; object-fit:cover; }
+
+/* ---------- 線の途中の点（自由に曲げる） ---------- */
+#bends{ position:absolute; left:0; top:0; width:0; height:0; }
+.wp{
+  position:absolute; left:0; top:0; width:16px; height:16px;
+  background:#fff; border:3px solid var(--indigo); border-radius:50%;
+  cursor:grab; touch-action:none;
+}
+.wp::after{ content:""; position:absolute; inset:-9px; }
+
+/* ---------- 関係の詳細（右の欄） ---------- */
+.lhead{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.lhead .who.big{ flex:1; min-width:0; max-width:none; padding:6px 8px; font:900 16px var(--mincho); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background:#fff; border:1px solid var(--rule); border-radius:6px; cursor:pointer; }
+.lhead .who.big:hover{ border-color:var(--indigo); }
+.lsep{ color:var(--sub); }
+.lsum{
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:8px 10px;
+  font-size:13px; background:#fff; border:1px solid var(--rule); border-left:5px solid var(--lc,#2b3a5e); border-radius:6px;
+}
+.lhsum{ font-weight:700; }
+.rel-more{
+  flex:none; padding:2px 9px; font:700 12px var(--ui); white-space:nowrap;
+  color:var(--indigo); background:transparent; border:1px solid var(--indigo); border-radius:6px; cursor:pointer;
+}
+.chips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.achip{ padding:1px 9px; font:500 12px var(--ui); background:#fff; border:1px solid var(--rule); border-radius:99px; cursor:pointer; }
+.achip:hover{ border-color:var(--indigo); }
+.diffitem{ margin-bottom:12px; }
+#drBody .cf-head select{ width:auto; flex:1; padding:4px 8px; font-size:13px; }
+
+.chglist{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+.chg{ background:#fff; border:1px solid var(--rule); border-radius:8px; }
+.chg.open{ border-color:var(--indigo); }
+.chg-head{ display:flex; align-items:flex-start; gap:6px; padding:6px 4px 6px 8px; }
+.chg-head .no{
+  flex:none; width:22px; height:22px; margin-top:2px; display:grid; place-items:center;
+  font:900 12px var(--mincho); color:#fff; background:var(--indigo); border-radius:50%;
+}
+.chg-sum{ flex:1; min-width:0; display:flex; flex-direction:column; padding:0; text-align:left; background:transparent; border:0; cursor:pointer; }
+.chg-sum .ba{ font-weight:700; font-size:14px; line-height:1.5; }
+.chg-sum .tr{ font-size:12px; line-height:1.5; color:var(--sub); }
+.chg-ops{ flex:none; display:flex; }
+.chg-ops .x:disabled{ opacity:.3; cursor:default; }
+.chgform{ padding:10px 12px 6px; border-top:1px dashed var(--rule); }
+
+.relwrap{ margin-bottom:10px; }
+.relsub{ margin:0 0 0 24px; font-size:12px; line-height:1.6; color:var(--sub); }
+.pchg-item{
+  display:flex; flex-direction:column; width:100%; margin-bottom:6px; padding:7px 10px; text-align:left;
+  background:#fff; border:1px solid var(--rule); border-left:5px solid var(--lc); border-radius:6px; cursor:pointer;
+}
+.pchg-item:hover{ border-color:var(--indigo); border-left-color:var(--lc); }
+.pc-who{ font-size:12px; color:var(--sub); }
+.pc-ba{ font-weight:700; font-size:14px; }
+.pc-tr{ font-size:12px; color:var(--sub); }
+
+/* ---------- 関係のポップオーバーの追加部品 ---------- */
+.pop-hint{ margin:10px 0 0; font-size:12px; line-height:1.6; color:var(--sub); }
+.pop-actions{ display:flex; flex-wrap:wrap; align-items:center; gap:2px 14px; margin-top:6px; }
+.pop-link{ padding:4px 0; font:700 12.5px var(--ui); color:var(--indigo); background:transparent; border:0; cursor:pointer; }
+.pop-actions .del{ margin-top:0; }
 
 /* ---------- スマホ：人物カード欄は下から出る ---------- */
 .t-short{ display:none; }
@@ -330,6 +406,7 @@ body.drawer-open #drawer{ transform:none; }
     <svg id="links" width="1" height="1"></svg>
     <div id="cards"></div>
     <div id="labels"></div>
+    <div id="bends"></div>
     <svg id="draft" width="1" height="1"><path d=""/></svg>
   </div>
   <div id="marquee" hidden></div>
@@ -359,6 +436,7 @@ body.drawer-open #drawer{ transform:none; }
   <a href="../index.html">ツール一覧にもどる</a>
 </div>
 <input id="fileInput" type="file" accept=".json,application/json" hidden>
+<input id="imgInput" type="file" accept="image/*" hidden>
 
 <div id="legend" class="legend" hidden></div>
 
@@ -449,6 +527,28 @@ const KINDS = [
 const colorOf = id => COLORS.find(c => c.id === id) || COLORS[0];
 const kindOf  = id => KINDS.find(k => k.id === id) || KINDS[KINDS.length - 1];
 const DEFAULT_FIELDS = ['外見', '性格', '目的・動機', '過去'];
+/* 関係の変化パターン（固定のルートではなく、創作を助けるための例） */
+const PATTERNS = [
+  { id: 'stranger', before: '知らない人',   after: '顔見知り' },
+  { id: 'acquaint', before: '顔見知り',     after: '話せる相手' },
+  { id: 'talk',     before: '話せる相手',   after: '友人' },
+  { id: 'trust',    before: '友人',         after: '信頼できる相手' },
+  { id: 'rebel',    before: '尊敬',         after: '反発' },
+  { id: 'awkward',  before: '仲良し',       after: '気まずい関係' },
+  { id: 'special',  before: '友人',         after: '特別な相手' }
+];
+const patternById = id => PATTERNS.find(p => p.id === id) || null;
+/* 他人との違いの分類（使いたいときだけ使う） */
+const DIFF_CATS = [
+  { id: 'values',  name: '価値観' },
+  { id: 'ability', name: '能力・得意不得意' },
+  { id: 'policy',  name: '行動方針' },
+  { id: 'other',   name: 'その他' }
+];
+/* 他人への態度の書き出し例（自由記述もできる） */
+const ATTITUDES = ['好意を持っている', '尊敬している', '信頼している', '苦手意識がある', '嫉妬している', '警戒している', '相手を誤解している', '自覚と実際の態度が違う'];
+const MAX_PTS = 8;   // 1本の線に付けられる「曲げの点」の数
+
 const isMobile = () => innerWidth < 760;
 
 /* =========================================================================
@@ -464,7 +564,10 @@ function normalizeMap(m) {
     name: str(c.name, 60), kana: str(c.kana, 60), role: str(c.role, 60), sum: str(c.sum, 300),
     color: COLORS.some(k => k.id === c.color) ? c.color : 'ai',
     fields: (Array.isArray(c.fields) ? c.fields : []).slice(0, 40).map(f => ({ k: str(f && f.k, 40), v: str(f && f.v, 20000) })),
-    memo: str(c.memo, 50000)
+    memo: str(c.memo, 50000),
+    inner: str(c.inner, 5000),
+    img: typeof c.img === 'string' && c.img.startsWith('data:image/') && c.img.length < 700000 ? c.img : '',
+    imgY: clamp(num(c.imgY, 25), 0, 100)
   }));
   const seen = new Set();
   cards.forEach(c => { if (seen.has(c.id)) c.id = uid(); seen.add(c.id); });
@@ -474,7 +577,17 @@ function normalizeMap(m) {
     .map(l => ({
       id: str(l.id, 32) || uid(), a: l.a, b: l.b, label: str(l.label, 40),
       kind: KINDS.some(k => k.id === l.kind) ? l.kind : 'other',
-      dir: ['none', 'ab', 'ba', 'both'].includes(l.dir) ? l.dir : 'none'
+      dir: ['none', 'ab', 'ba', 'both'].includes(l.dir) ? l.dir : 'none',
+      attAB: str(l.attAB, 300), attBA: str(l.attBA, 300),
+      shape: l.shape === 'straight' ? 'straight' : 'curve',
+      pts: (Array.isArray(l.pts) ? l.pts : []).filter(p => p && Number.isFinite(p.u) && Number.isFinite(p.v)).slice(0, MAX_PTS).map(p => ({ u: clamp(p.u, -5, 6), v: clamp(p.v, -6, 6) })),
+      diffs: (Array.isArray(l.diffs) ? l.diffs : []).slice(0, 30).map(d => ({
+        id: str(d && d.id, 32) || uid(), cat: DIFF_CATS.some(c => c.id === (d && d.cat)) ? d.cat : 'other', text: str(d && d.text, 5000) })),
+      changes: (Array.isArray(l.changes) ? l.changes : []).slice(0, 200).map(r => ({
+        id: str(r && r.id, 32) || uid(),
+        pattern: r && (r.pattern === 'other' || PATTERNS.some(p => p.id === r.pattern)) ? r.pattern : '',
+        patternText: str(r && r.patternText, 60), before: str(r && r.before, 200), trigger: str(r && r.trigger, 3000),
+        after: str(r && r.after, 200), impact: str(r && r.impact, 5000), note: str(r && r.note, 5000) }))
     }));
   const legend = {};
   if (m && m.legend && typeof m.legend === 'object') COLORS.forEach(c => { if (typeof m.legend[c.id] === 'string') legend[c.id] = m.legend[c.id].slice(0, 30); });
@@ -540,7 +653,7 @@ function updateUndoUI() { $('#undoBtn').disabled = hi <= 0; $('#redoBtn').disabl
 /* =========================================================================
    参照
    ========================================================================= */
-const canvas = $('#canvas'), world = $('#world'), cardsLayer = $('#cards'), labelsLayer = $('#labels');
+const canvas = $('#canvas'), world = $('#world'), cardsLayer = $('#cards'), labelsLayer = $('#labels'), bendsLayer = $('#bends');
 const linksSvg = $('#links'), draft = $('#draft'), draftPath = $('#draft path'), marquee = $('#marquee');
 const drawer = $('#drawer'), drBody = $('#drBody'), drTitle = $('#drTitle');
 const linkPop = $('#linkPop'), mapMenu = $('#mapMenu'), fileMenu = $('#fileMenu');
@@ -608,7 +721,8 @@ function focusCard(id) {
    ========================================================================= */
 function makeCardEl(id) {
   return h('div', { class: 'card', tabindex: '0', 'data-id': id, role: 'group' },
-    h('div', { class: 'nm' }), h('div', { class: 'kana' }), h('div', { class: 'role' }), h('div', { class: 'sum' }),
+    h('div', { class: 'head' }, h('div', { class: 'nm' }), h('div', { class: 'av' }, h('img', { alt: '', draggable: 'false' }))),
+    h('div', { class: 'kana' }), h('div', { class: 'role' }), h('div', { class: 'sum' }),
     ['t', 'r', 'b', 'l'].map(p => h('button', { class: 'handle h-' + p, type: 'button', tabindex: '-1', 'aria-hidden': 'true' })));
 }
 function updateCardEl(el, c) {
@@ -622,6 +736,9 @@ function updateCardEl(el, c) {
   }
   const set = (sel_, v) => { const n = $(sel_, el); n.textContent = v; n.hidden = !v; };
   set('.kana', c.kana); set('.role', c.role); set('.sum', c.sum);
+  const av = $('.av', el), im = $('img', av);
+  av.hidden = !c.img;
+  if (c.img) { if (im._src !== c.img) { im._src = c.img; im.src = c.img; } im.style.objectPosition = `50% ${c.imgY}%`; }
   el.setAttribute('aria-label', c.name || '名前のない人物');
 }
 function measure() { for (const [id, el] of cardEls) sizes.set(id, { w: el.offsetWidth, h: el.offsetHeight }); }
@@ -665,11 +782,99 @@ function edgePoint(ct, tx, ty, pad = 5) {
   return { x: ct.x + dx * t, y: ct.y + dy * t };
 }
 function arrowD(tip, from) {
-  const dx = tip.x - from.x, dy = tip.y - from.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
-  const bx = tip.x - ux * 14, by = tip.y - uy * 14, px = -uy * 7, py = ux * 7;
-  return `M${tip.x} ${tip.y}L${bx + px} ${by + py}L${bx - px} ${by - py}Z`;
+  const dx = tip.x - from.x, dy = tip.y - from.y, len = Math.hypot(dx, dy);
+  if (!len) return '';
+  const ux = dx / len, uy = dy / len, bx = tip.x - ux * ARROW_LEN, by = tip.y - uy * ARROW_LEN, px = -uy * 7, py = ux * 7;
+  return `M${tip.x.toFixed(1)} ${tip.y.toFixed(1)}L${(bx + px).toFixed(1)} ${(by + py).toFixed(1)}L${(bx - px).toFixed(1)} ${(by - py).toFixed(1)}Z`;
 }
+
+/* ---------- 線の幾何 ----------
+   線は「2枚のカードの中心を結ぶ基準線」に対する相対座標 {u, v} の点で曲げ方を覚える。
+   u は基準線に沿った位置（0=Aの中心、1=Bの中心）、v は基準線からの横のずれ（基準線の長さに対する比）。
+   カードを動かしても、曲げ方がゴム紐のようについてくる。 */
+const GAP_ARROW = 12, GAP_PLAIN = 8, ARROW_LEN = 14;   // カードのふちから線（矢印）の先までの余白
+
+function frameOf(l) {
+  const A = cardById(l.a), B = cardById(l.b);
+  if (!A || !B) return null;
+  const ca = center(A), cb = center(B), dx = cb.x - ca.x, dy = cb.y - ca.y, len = Math.hypot(dx, dy) || 1;
+  return { A, B, ca, cb, len, ex: dx / len, ey: dy / len, nx: -dy / len, ny: dx / len };
+}
+const ptFrom = (f, p) => ({ x: f.ca.x + f.ex * p.u * f.len + f.nx * p.v * f.len, y: f.ca.y + f.ey * p.u * f.len + f.ny * p.v * f.len });
+const ptTo = (f, x, y) => {
+  const rx = x - f.ca.x, ry = y - f.ca.y;
+  return { u: clamp((rx * f.ex + ry * f.ey) / f.len, -5, 6), v: clamp((rx * f.nx + ry * f.ny) / f.len, -6, 6) };
+};
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const inRect = (p, ct, gap) => Math.abs(p.x - ct.x) < ct.hw + gap && Math.abs(p.y - ct.y) < ct.hh + gap;
+function distSeg(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1, t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / l2, 0, 1);
+  return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+}
+/* 指定した点をなめらかに通る曲線（Catmull-Rom）を、折れ線にして返す */
+function spline(pts, seg = 18) {
+  if (pts.length < 3) return pts.slice();
+  const P = [pts[0], ...pts, pts[pts.length - 1]], out = [];
+  for (let i = 1; i < P.length - 2; i++) {
+    const p0 = P[i - 1], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2];
+    for (let s = 0; s < seg; s++) {
+      const t = s / seg, t2 = t * t, t3 = t2 * t;
+      out.push({
+        x: .5 * (2 * p1.x + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+        y: .5 * (2 * p1.y + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+      });
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+/* 折れ線の先頭（カードの中）から、カードの外の余白つきの位置までを切り落とす */
+function clipStart(poly, ct, gap) {
+  let i = 0;
+  while (i < poly.length && inRect(poly[i], ct, gap)) i++;
+  if (i >= poly.length) return null;
+  if (i === 0) return poly;
+  let a = poly[i - 1], b = poly[i];
+  for (let k = 0; k < 14; k++) { const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; if (inRect(m, ct, gap)) a = m; else b = m; }
+  return [b, ...poly.slice(i)];
+}
+function clipEnd(poly, ct, gap) { const r = clipStart(poly.slice().reverse(), ct, gap); return r ? r.reverse() : null; }
+function trimEnd(poly, len) {                 // 終端から len だけ短くする（矢印の根もとまで）
+  const out = poly.slice(); let rest = len;
+  while (out.length > 1) {
+    const a = out[out.length - 2], b = out[out.length - 1], d = dist(a, b);
+    if (d > rest) { const t = (d - rest) / d; out[out.length - 1] = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; return out; }
+    rest -= d; out.pop();
+  }
+  return out;
+}
+function tailDir(poly) {                        // 終端での向き
+  const e = poly[poly.length - 1];
+  for (let i = poly.length - 2; i >= 0; i--) if (dist(e, poly[i]) >= 8) return { x: e.x - poly[i].x, y: e.y - poly[i].y };
+  const p = poly[0]; return { x: e.x - p.x, y: e.y - p.y };
+}
+function polyMid(poly) {
+  let total = 0; for (let i = 1; i < poly.length; i++) total += dist(poly[i - 1], poly[i]);
+  let acc = 0;
+  for (let i = 1; i < poly.length; i++) {
+    const d = dist(poly[i - 1], poly[i]);
+    if (acc + d >= total / 2) { const t = d ? (total / 2 - acc) / d : 0; return { x: poly[i - 1].x + (poly[i].x - poly[i - 1].x) * t, y: poly[i - 1].y + (poly[i].y - poly[i - 1].y) * t }; }
+    acc += d;
+  }
+  return poly[0];
+}
+const crosses = (poly, rects, a, b, margin) => poly.some(p => rects.some(r => r.id !== a && r.id !== b && inRect(p, r, margin)));
+/* 自動の曲線は、ほかのカードの上を通らないように、曲げ方を自動で選ぶ */
+function autoOffset(l, f, s, base, rects) {
+  const make = off => spline([f.ca, { x: (f.ca.x + f.cb.x) / 2 + s * f.nx * off, y: (f.ca.y + f.cb.y) / 2 + s * f.ny * off }, f.cb], 14);
+  if (!crosses(make(base), rects, l.a, l.b, 14)) return base;
+  const sign = base >= 0 ? 1 : -1;
+  for (const st of [90, 180, 280, 400]) for (const sg of [sign, -sign]) if (!crosses(make(base + sg * st), rects, l.a, l.b, 14)) return base + sg * st;
+  return base;
+}
+
 function drawLinks() {
+  const rects = map.cards.map(c => ({ id: c.id, ...center(c) }));
   const groups = new Map();
   for (const l of map.links) {
     const key = l.a < l.b ? l.a + '|' + l.b : l.b + '|' + l.a;
@@ -677,26 +882,71 @@ function drawLinks() {
     groups.get(key).push(l);
   }
   for (const arr of groups.values()) arr.forEach((l, i) => {
-    const A = cardById(l.a), B = cardById(l.b), g = linkEls.get(l.id);
-    if (!A || !B || !g) return;
-    const ca = center(A), cb = center(B), p = l.a < l.b ? ca : cb, q = l.a < l.b ? cb : ca;
-    const dx = q.x - p.x, dy = q.y - p.y, len = Math.hypot(dx, dy) || 1;
-    const off = (i - (arr.length - 1) / 2) * 70 + (arr.length === 1 ? 16 : 0);
-    const ctrl = { x: (p.x + q.x) / 2 + (-dy / len) * off * 2, y: (p.y + q.y) / 2 + (dx / len) * off * 2 };
-    const s0 = edgePoint(ca, ctrl.x, ctrl.y), e0 = edgePoint(cb, ctrl.x, ctrl.y);
-    const d = `M${s0.x} ${s0.y}Q${ctrl.x} ${ctrl.y} ${e0.x} ${e0.y}`, k = kindOf(l.kind);
-    const [hit, ln, ahA, ahB] = g.children;
-    hit.setAttribute('d', d); ln.setAttribute('d', d);
+    const g = linkEls.get(l.id), f = frameOf(l);
+    if (!g || !f) return;
+    const s = l.a < l.b ? 1 : -1, k = kindOf(l.kind), [hit, ln, ahA, ahB] = g.children, tag = tagEls.get(l.id);
+    /* 1) 通る点を決める */
+    let ctrl;
+    if (l.pts.length) ctrl = [f.ca, ...l.pts.map(p => ptFrom(f, p)), f.cb];
+    else if (l.shape === 'straight') {
+      const off = clamp((i - (arr.length - 1) / 2) * 26 * s, -30, 30);
+      ctrl = [f.ca, { x: f.ca.x + f.nx * off, y: f.ca.y + f.ny * off }, { x: f.cb.x + f.nx * off, y: f.cb.y + f.ny * off }, f.cb];
+    } else {
+      const base = (i - (arr.length - 1) / 2) * 70 + (arr.length === 1 ? 16 : 0), off = autoOffset(l, f, s, base, rects);
+      ctrl = [f.ca, { x: (f.ca.x + f.cb.x) / 2 + s * f.nx * off, y: (f.ca.y + f.cb.y) / 2 + s * f.ny * off }, f.cb];
+    }
+    /* 2) 折れ線にして、両端をカードの外（余白つき）で切る */
+    const arrowEnd = l.dir === 'ab' || l.dir === 'both', arrowStart = l.dir === 'ba' || l.dir === 'both';
+    let poly = l.shape === 'straight' ? ctrl : spline(ctrl, 18);
+    poly = clipStart(poly, f.ca, arrowStart ? GAP_ARROW : GAP_PLAIN);
+    if (poly) poly = clipEnd(poly, f.cb, arrowEnd ? GAP_ARROW : GAP_PLAIN);
+    if (!poly || poly.length < 2) { for (const e of g.children) e.setAttribute('d', ''); tag.style.display = 'none'; linkMid.delete(l.id); return; }
+    tag.style.display = '';
+    /* 3) 線は矢印の根もとまで。矢印はカードの手前で止まる */
+    let body = poly;
+    if (arrowEnd) body = trimEnd(body, ARROW_LEN - 2);
+    if (arrowStart) body = trimEnd(body.slice().reverse(), ARROW_LEN - 2).reverse();
+    const pd = pts => 'M' + pts.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join('L');
+    hit.setAttribute('d', pd(poly));
+    ln.setAttribute('d', body.length >= 2 ? pd(body) : '');
     ln.setAttribute('stroke-width', l.id === sel.link ? k.w + 1.2 : k.w);
     if (k.dash) ln.setAttribute('stroke-dasharray', k.dash); else ln.removeAttribute('stroke-dasharray');
-    ahB.setAttribute('d', l.dir === 'ab' || l.dir === 'both' ? arrowD(e0, ctrl) : '');
-    ahA.setAttribute('d', l.dir === 'ba' || l.dir === 'both' ? arrowD(s0, ctrl) : '');
-    const m = { x: .25 * s0.x + .5 * ctrl.x + .25 * e0.x, y: .25 * s0.y + .5 * ctrl.y + .25 * e0.y };
+    const tipB = poly[poly.length - 1], dB = tailDir(poly), tipA = poly[0], dA = tailDir(poly.slice().reverse());
+    ahB.setAttribute('d', arrowEnd ? arrowD(tipB, { x: tipB.x - dB.x, y: tipB.y - dB.y }) : '');
+    ahA.setAttribute('d', arrowStart ? arrowD(tipA, { x: tipA.x - dA.x, y: tipA.y - dA.y }) : '');
+    const m = polyMid(poly);
     linkMid.set(l.id, m);
-    tagEls.get(l.id).style.transform = `translate(${m.x}px,${m.y}px) translate(-50%,-50%)`;
+    tag.style.transform = `translate(${m.x}px,${m.y}px) translate(-50%,-50%)`;
   });
+  renderBends();
   positionLinkPop();
 }
+
+/* 選んだ線の「曲げの点」を表示する */
+function renderBends() {
+  bendsLayer.textContent = '';
+  const l = sel.link && linkById(sel.link), f = l && frameOf(l);
+  if (!l || !f) return;
+  l.pts.forEach((p, i) => {
+    const q = ptFrom(f, p), e = h('div', { class: 'wp', 'data-id': l.id, 'data-i': String(i), title: 'ドラッグで動かす／ダブルクリックで削除' });
+    e.style.transform = `translate(${q.x}px,${q.y}px) translate(-50%,-50%)`;
+    bendsLayer.append(e);
+  });
+}
+/* 線をつかんで引くと、その場所に曲げの点ができて、そのまま動かせる */
+function startBend(e) {
+  const id = drag.id, l = linkById(id), f = l && frameOf(l);
+  if (!l || !f) { drag = null; return; }
+  if (l.pts.length >= MAX_PTS) { toast(`曲げの点は1本の線に${MAX_PTS}個までです。`); drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: map.view.x, vy: map.view.y, moved: true }; return; }
+  const w0 = toWorld(drag.sx, drag.sy), ctrl = [f.ca, ...l.pts.map(p => ptFrom(f, p)), f.cb];
+  let best = 0, bd = Infinity;
+  for (let j = 0; j < ctrl.length - 1; j++) { const d = distSeg(w0, ctrl[j], ctrl[j + 1]); if (d < bd) { bd = d; best = j; } }
+  l.pts.splice(best, 0, ptTo(f, w0.x, w0.y));
+  sel.cards = new Set(); sel.link = id; closeLinkPop(); refreshState(); renderDrawer();
+  drag = { mode: 'bend', id, i: best, moved: true };
+  drawLinks();
+}
+
 
 /* =========================================================================
    選択と「関係を強調」
@@ -724,9 +974,11 @@ function select(ids) {
   sel.cards = new Set(ids); sel.link = null;
   closeLinkPop(); refreshState(); renderDrawer(); drawLinks();
 }
-function selectLink(id) {
+function selectLink(id, { pop = true } = {}) {
   sel.cards = new Set(); sel.link = id;
-  refreshState(); renderDrawer(); drawLinks(); openLinkPop(id, { focus: true });
+  if (!pop) { closeLinkPop(); if (!store.ui.drawer) setDrawer(true); }
+  refreshState(); renderDrawer(); drawLinks();
+  if (pop) openLinkPop(id, { focus: true });
 }
 
 /* =========================================================================
@@ -734,24 +986,31 @@ function selectLink(id) {
    ========================================================================= */
 function addCard(wx, wy) {
   const c = { id: uid(), x: Math.round(wx - CARD_W / 2), y: Math.round(wy - CARD_H / 2), name: '', kana: '', role: '', sum: '',
-    color: 'ai', fields: DEFAULT_FIELDS.map(k => ({ k, v: '' })), memo: '' };
+    color: 'ai', fields: DEFAULT_FIELDS.map(k => ({ k, v: '' })), memo: '', inner: '', img: '', imgY: 25 };
   tx(() => map.cards.push(c));
   return c;
 }
 function popCard(id) { const el = cardEls.get(id); if (el && !reduceMotion) { el.classList.add('pop'); el.addEventListener('animationend', () => el.classList.remove('pop'), { once: true }); } }
+function blankLink(a, b, extra) {
+  return Object.assign({ id: uid(), a, b, label: '', kind: 'other', dir: 'none', attAB: '', attBA: '', shape: 'curve', pts: [], diffs: [], changes: [] }, extra || {});
+}
 function createLink(a, b) {
-  const l = { id: uid(), a, b, label: '', kind: 'other', dir: 'none' };
+  const l = blankLink(a, b);
   tx(() => map.links.push(l));
   return l;
 }
 function deleteSelection() {
   if (sel.link) {
-    const id = sel.link; closeLinkPop();
-    tx(() => { map.links = map.links.filter(l => l.id !== id); });
+    const id = sel.link, l = linkById(id);
+    if (l && l.changes.length && !confirm(`この関係には、変化の記録が${l.changes.length}件あります。関係と一緒に削除しますか？（元に戻すこともできます）`)) return;
+    closeLinkPop();
+    tx(() => { map.links = map.links.filter(x => x.id !== id); });
     sel.link = null; fullRender(); toast('関係の線を削除しました。', { label: '元に戻す', fn: undo }); return;
   }
   if (!sel.cards.size) return;
   const ids = new Set(sel.cards), n = ids.size;
+  const lost = map.links.filter(l => ids.has(l.a) || ids.has(l.b)).reduce((sum, l) => sum + l.changes.length, 0);
+  if (lost && !confirm(`この人物につながる関係の変化の記録が${lost}件、一緒に削除されます。よろしいですか？（元に戻すこともできます）`)) return;
   tx(() => { map.cards = map.cards.filter(c => !ids.has(c.id)); map.links = map.links.filter(l => !ids.has(l.a) && !ids.has(l.b)); });
   sel.cards.clear(); fullRender();
   toast(n === 1 ? '人物を削除しました。' : `${n}人を削除しました。`, { label: '元に戻す', fn: undo });
@@ -777,15 +1036,16 @@ canvas.addEventListener('pointerdown', e => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   closeMenus();
-  if (!(e.target.closest && e.target.closest('.ltag, .lk'))) closeLinkPop();
+  if (!(e.target.closest && e.target.closest('.ltag, .lk, .wp'))) closeLinkPop();
   if (pointers.size === 2 && (!drag || drag.mode === 'pan' || drag.mode === 'marquee')) { startPinch(); return; }
   if (pointers.size > 1) return;
   cancelAnimationFrame(anim);
   canvas.focus({ preventScroll: true });
-  const t = e.target, handle = t.closest('.handle'), cardEl = t.closest('.card'), tagEl = t.closest('.ltag'), lk = t.closest('.lk');
+  const t = e.target, handle = t.closest('.handle'), cardEl = t.closest('.card'), tagEl = t.closest('.ltag'), lk = t.closest('.lk'), wp = t.closest('.wp');
   if (handle && cardEl) startLink(e, cardEl.dataset.id);
   else if (cardEl) startCardDrag(e, cardEl.dataset.id);
-  else if (tagEl || lk) drag = { mode: 'linkclick', id: (tagEl || lk).dataset.id, sx: e.clientX, sy: e.clientY };
+  else if (wp) drag = { mode: 'wp', id: wp.dataset.id, i: Number(wp.dataset.i), sx: e.clientX, sy: e.clientY, moved: false };
+  else if (tagEl || lk) drag = { mode: 'linkclick', id: (tagEl || lk).dataset.id, sx: e.clientX, sy: e.clientY, fromLine: true };   // 線でも荷札でも、つかんで引けば曲げられる
   else drag = { mode: e.shiftKey ? 'marquee' : 'pan', sx: e.clientX, sy: e.clientY, vx: map.view.x, vy: map.view.y, moved: false, base: new Set(sel.cards) };
 });
 
@@ -799,8 +1059,18 @@ canvas.addEventListener('pointermove', e => {
       if (drag.moved) { map.view.x = drag.vx + dx; map.view.y = drag.vy + dy; applyView(); }
       break;
     case 'linkclick':
-      if (Math.hypot(dx, dy) > 5) drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: map.view.x, vy: map.view.y, moved: true }, canvas.classList.add('panning');
+      if (Math.hypot(dx, dy) > 5) {
+        if (drag.fromLine) startBend(e);
+        else { drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, vx: map.view.x, vy: map.view.y, moved: true }; canvas.classList.add('panning'); }
+      }
       break;
+    case 'wp': case 'bend': {
+      if (!drag.moved && Math.hypot(dx, dy) > 3) drag.moved = true;
+      if (!drag.moved) break;
+      const l = linkById(drag.id), f = l && frameOf(l); if (!l || !f) break;
+      const w = toWorld(e.clientX, e.clientY); l.pts[drag.i] = ptTo(f, w.x, w.y); drawLinks();
+      break;
+    }
     case 'marquee': {
       drag.moved = true;
       const x0 = Math.min(drag.sx, e.clientX), y0 = Math.min(drag.sy, e.clientY), x1 = Math.max(drag.sx, e.clientX), y1 = Math.max(drag.sy, e.clientY);
@@ -869,6 +1139,17 @@ function endPointer(e) {
       break;
     case 'link': finishLink(e, d); break;
     case 'linkclick': selectLink(d.id); break;
+    case 'bend': commit(); selectLink(d.id, { pop: false }); break;
+    case 'wp':
+      if (d.moved) commit();
+      else {
+        const key = d.id + ':' + d.i;
+        if (now - lastTap.t < 350 && lastTap.kind === 'wp' && lastTap.id === key) {
+          lastTap = { t: 0, kind: '' };
+          const l = linkById(d.id); if (l) { l.pts.splice(d.i, 1); commit(); drawLinks(); }
+        } else lastTap = { t: now, kind: 'wp', id: key, x: 0, y: 0 };
+      }
+      break;
   }
 }
 canvas.addEventListener('pointerup', endPointer);
@@ -927,21 +1208,31 @@ function openLinkPop(id, { focus = true, chain = null } = {}) {
   popLink = id; popChain = chain;
   const A = cardById(l.a), B = cardById(l.b);
   const label = h('input', { type: 'text', class: 'pop-label', placeholder: '関係の名前（例：幼なじみ）', maxlength: '40', value: l.label, 'aria-label': '関係の名前' });
-  label.addEventListener('input', () => { l.label = label.value; syncLinks(); refreshState(); typingCommit(); updateRelationRows(); });
+  label.addEventListener('input', () => { l.label = label.value; syncLinks(); refreshState(); typingCommit(); updateRelationRows(); paintLinkHeader(l); });
   label.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === 'Escape') { ev.preventDefault(); finishPop(); } });
   const chips = h('div', { class: 'group', role: 'group', 'aria-label': '関係の種類' });
   const paintChips = () => $$all('.kchip', chips).forEach(b => b.classList.toggle('on', b.dataset.k === l.kind));
   KINDS.forEach(k => chips.append(h('button', { type: 'button', class: 'kchip' + (l.kind === k.id ? ' on' : ''), 'data-k': k.id, style: `--lc:${k.color}`,
     onclick: () => {
       l.kind = k.id; if (!l.label && k.id !== 'other') { l.label = k.name; label.value = k.name; }
-      commit(); syncLinks(); refreshState(); paintChips(); renderRelationsOnly();
+      commit(); syncLinks(); refreshState(); paintChips(); renderRelationsOnly(); paintLinkHeader(l);
     } }, h('i'), k.name)));
   const dirs = h('div', { class: 'dirs', role: 'group', 'aria-label': '矢印' });
   const paintDirs = () => $$all('button', dirs).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === l.dir)));
   [['none', '矢印なし'], ['ab', `${shortName(A)}→${shortName(B)}`], ['ba', `${shortName(A)}←${shortName(B)}`], ['both', '↔ 双方向']].forEach(([d, t]) =>
-    dirs.append(h('button', { type: 'button', 'data-d': d, 'aria-pressed': String(l.dir === d), onclick: () => { l.dir = d; commit(); drawLinks(); paintDirs(); renderRelationsOnly(); } }, t)));
+    dirs.append(h('button', { type: 'button', 'data-d': d, 'aria-pressed': String(l.dir === d),
+      onclick: () => { l.dir = d; commit(); drawLinks(); paintDirs(); renderRelationsOnly(); paintLinkHeader(l); } }, t)));
+  const shape = h('div', { class: 'dirs', role: 'group', 'aria-label': '線の形' });
+  const paintShape = () => $$all('button', shape).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === l.shape)));
+  [['curve', 'なめらかな線'], ['straight', 'まっすぐな線']].forEach(([s, t]) =>
+    shape.append(h('button', { type: 'button', 'data-s': s, 'aria-pressed': String(l.shape === s),
+      onclick: () => { l.shape = s; commit(); drawLinks(); paintShape(); } }, t)));
+  const hint = h('p', { class: 'pop-hint', text: '線をつかんでドラッグすると、自由に曲げられます。曲げの点はダブルクリックで消せます。' });
+  const more = h('button', { type: 'button', class: 'pop-link', onclick: () => { setDrawer(true); renderDrawer(); const t = $('textarea', drBody); if (t) t.focus(); } }, '態度・違い・変化を書く');
+  const reset = h('button', { type: 'button', class: 'pop-link', onclick: () => { l.pts = []; commit(); drawLinks(); } }, '曲げをリセット');
   linkPop.textContent = '';
-  linkPop.append(label, chips, dirs, h('button', { type: 'button', class: 'del', onclick: () => { deleteSelection(); } }, 'この関係を削除'));
+  linkPop.append(label, chips, dirs, shape, hint,
+    h('div', { class: 'pop-actions' }, more, reset, h('button', { type: 'button', class: 'del', onclick: () => { deleteSelection(); } }, 'この関係を削除')));
   linkPop.hidden = false; positionLinkPop();
   if (focus) { label.focus(); label.select(); }
 }
@@ -978,7 +1269,9 @@ function focusName(id) {
 function renderDrawer() {
   const top = drBody.scrollTop;
   drBody.textContent = '';
-  if (sel.cards.size === 1) drawerCard(cardById([...sel.cards][0]));
+  const l = sel.link && linkById(sel.link);
+  if (l) drawerLink(l);
+  else if (sel.cards.size === 1) drawerCard(cardById([...sel.cards][0]));
   else if (sel.cards.size > 1) drawerMulti();
   else drawerList();
   drBody.scrollTop = top;
@@ -992,16 +1285,45 @@ function textField(label, get, set, { multi = false, ph = '', cls = '', role = '
   if (multi) requestAnimationFrame(() => autosize(el));
   return h('label', { class: 'fld' }, h('span', { class: 'fl', text: label }), el);
 }
+
+/* ---------- 小さな部品 ---------- */
+const openRecs = new Set();                    // 開いている変化記録のID
+let imgTarget = null;                          // 画像を設定する人物のID
+const nameOf = c => (c && c.name) || '名前なし';
+function clip(s, n) { s = (s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n) + '…' : s; }
+function dirText(l, A, B) { return { none: '矢印なし', ab: `${nameOf(A)}→${nameOf(B)}`, ba: `${nameOf(A)}←${nameOf(B)}`, both: '双方向' }[l.dir] || '矢印なし'; }
+
+/* ---------- プロフィール画像 ---------- */
+function imageBlock(c) {
+  const prev = h('div', { class: 'imgprev' });
+  const paint = () => {
+    prev.textContent = ''; prev.classList.toggle('none', !c.img);
+    if (c.img) { const im = h('img', { alt: 'プロフィール画像', src: c.img }); im.style.objectPosition = `50% ${c.imgY}%`; prev.append(im); }
+    else prev.append('画像なし');
+  };
+  paint();
+  const choose = h('button', { type: 'button', class: 'add-btn', 'data-role': 'img-choose', onclick: () => { imgTarget = c.id; $('#imgInput').click(); } }, c.img ? '画像を変更' : '画像を選ぶ');
+  const del = h('button', { type: 'button', class: 'x-btn', 'data-role': 'img-delete', hidden: !c.img,
+    onclick: () => { tx(() => { c.img = ''; }); syncCards(); drawLinks(); renderDrawer(); } }, '画像を削除');
+  const range = h('input', { type: 'range', min: '0', max: '100', value: String(c.imgY), 'aria-label': '画像の表示位置（上下）' });
+  range.addEventListener('input', () => { c.imgY = Number(range.value); syncCards(); paint(); typingCommit(); });
+  const rl = h('label', { class: 'imgrange', hidden: !c.img }, h('span', { class: 'fl', text: '表示位置（上下）' }), range);
+  return h('div', { class: 'imgbox' }, prev,
+    h('div', { class: 'imgctl' }, h('span', { class: 'fl', text: 'プロフィール画像' }), h('div', { class: 'imgbtns' }, choose, del), rl));
+}
+
+/* ---------- 人物カード ---------- */
 function drawerCard(c) {
   drTitle.textContent = '人物カード';
   const sw = h('div', { class: 'colors', role: 'radiogroup', 'aria-label': '色' });
   COLORS.forEach(col => sw.append(h('button', { type: 'button', class: 'sw' + (c.color === col.id ? ' on' : ''), style: `--sw:${col.hex}`, title: col.name, role: 'radio', 'aria-label': col.name, 'aria-checked': String(c.color === col.id), 'data-c': col.id,
     onclick: () => { c.color = col.id; $$all('.sw', sw).forEach(b => { const on = b.dataset.c === c.color; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }); commit(); syncCards(); renderLegend(); renderRelationsOnly(); } })));
-  drBody.append(sw,
+  drBody.append(sw, imageBlock(c),
     textField('名前', () => c.name, v => { c.name = v; }, { cls: 'name', ph: '名前', role: 'name' }),
     textField('よみ', () => c.kana, v => { c.kana = v; }, { ph: 'ふりがな' }),
     textField('役割・肩書き', () => c.role, v => { c.role = v; }, { ph: '例：主人公／王女／探偵' }),
-    textField('一言（カードに表示されます）', () => c.sum, v => { c.sum = v; }, { multi: true, ph: '例：夜の図書館で働く見習い司書。' }));
+    textField('一言（カードに表示されます）', () => c.sum, v => { c.sum = v; }, { multi: true, ph: '例：夜の図書館で働く見習い司書。' }),
+    textField('隠れた一面（表向きの性格とは違う面）', () => c.inner, v => { c.inner = v; }, { multi: true, role: 'inner', ph: '例：普段は自信満々だが、実は自分の将来に迷っている。' }));
 
   const fields = h('div');
   const renderFields = (focusLast = false) => {
@@ -1025,9 +1347,10 @@ function drawerCard(c) {
   drBody.append(h('div', { class: 'sec', text: '設定' }), fields,
     h('button', { type: 'button', class: 'add-btn', onclick: () => { c.fields.push({ k: '', v: '' }); commit(); renderFields(true); } }, '項目を追加'),
     h('div', { class: 'sec', text: 'メモ' }), memo,
-    h('div', { class: 'sec', text: '関係' }), h('div', { id: 'rels' }),
+    h('div', { class: 'sec', text: '関係（態度・違い・変化）' }), h('div', { id: 'rels' }),
+    h('div', { class: 'sec', text: 'この人物が関わる関係の変化' }), h('div', { id: 'pchg' }),
     h('button', { type: 'button', class: 'danger-btn', onclick: deleteSelection }, 'この人物を削除'));
-  renderRelationsOnly();
+  renderRelationsOnly(); renderPersonChanges(c);
 }
 function relRowsFor(c) {
   return map.links.filter(l => l.a === c.id || l.b === c.id).map(l => {
@@ -1035,8 +1358,16 @@ function relRowsFor(c) {
     const arrow = l.dir === 'both' ? '↔' : l.dir === 'none' ? '―' : ((l.dir === 'ab') === (l.a === c.id) ? '→' : '←');
     const input = h('input', { type: 'text', value: l.label, placeholder: '関係の名前', 'aria-label': `${shortName(o)}との関係`, 'data-lid': l.id });
     input.addEventListener('input', () => { l.label = input.value; syncLinks(); refreshState(); typingCommit(); });
-    return h('div', { class: 'rel', style: `--lc:${k.color}` }, h('i'), h('span', { class: 'ar', text: arrow }),
-      h('button', { type: 'button', class: 'who', title: 'この人物へ移動', onclick: () => { select([otherId]); focusCard(otherId); } }, shortName(o)), input);
+    const top = h('div', { class: 'rel', style: `--lc:${k.color}` }, h('i'), h('span', { class: 'ar', text: arrow }),
+      h('button', { type: 'button', class: 'who', title: 'この人物へ移動', onclick: () => { select([otherId]); focusCard(otherId); } }, shortName(o)), input,
+      h('button', { type: 'button', class: 'rel-more', 'data-role': 'rel-detail', title: '態度・違い・変化を開く', onclick: () => selectLink(l.id, { pop: false }) }, '詳細'));
+    /* この人物から見た、相手への態度・相手からの態度・違い・変化の要約（関係データを参照して表示） */
+    const att = l.a === c.id ? { mine: l.attAB, theirs: l.attBA } : { mine: l.attBA, theirs: l.attAB }, lines = [];
+    if (att.mine) lines.push(`態度（→${shortName(o)}）：${clip(att.mine, 28)}`);
+    if (att.theirs) lines.push(`態度（←${shortName(o)}）：${clip(att.theirs, 28)}`);
+    if (l.diffs.length) { const d = l.diffs.find(x => x.text) || l.diffs[0]; lines.push(`違い：${DIFF_CATS.find(x => x.id === d.cat).name} ${clip(d.text, 22)}${l.diffs.length > 1 ? `（ほか${l.diffs.length - 1}件）` : ''}`); }
+    if (l.changes.length) { const r = l.changes[l.changes.length - 1]; lines.push(`変化：${l.changes.length}件（最新：${r.before || '未定'} → ${r.after || '未定'}）`); }
+    return h('div', { class: 'relwrap' }, top, lines.length ? h('div', { class: 'relsub' }, lines.map(t => h('div', { text: t }))) : null);
   });
 }
 function renderRelationsOnly() {
@@ -1053,6 +1384,19 @@ function renderRelationsOnly() {
     } }, '関係を追加')));
   }
 }
+/* 人物ごとに変化履歴を重複保存せず、その人物が関わる関係の変化記録を参照して一覧にする */
+function renderPersonChanges(c) {
+  const box = $('#pchg', drBody); if (!box) return;
+  box.textContent = '';
+  const items = [];
+  map.links.filter(l => l.a === c.id || l.b === c.id).forEach(l => { const o = cardById(l.a === c.id ? l.b : l.a); l.changes.forEach((r, i) => items.push({ l, r, i, o })); });
+  if (!items.length) { box.append(h('p', { class: 'muted', text: 'まだありません。関係の「詳細」から、変化を記録できます。' })); return; }
+  items.forEach(({ l, r, i, o }) => box.append(h('button', { type: 'button', class: 'pchg-item', 'data-role': 'person-change', style: `--lc:${kindOf(l.kind).color}`,
+    onclick: () => { openRecs.add(r.id); selectLink(l.id, { pop: false }); } },
+    h('span', { class: 'pc-who', text: `${shortName(o)}との関係｜${i + 1}つ目` }),
+    h('span', { class: 'pc-ba', text: `${r.before || '（未定）'} → ${r.after || '（未定）'}` }),
+    h('span', { class: 'pc-tr', text: r.trigger ? `きっかけ：${clip(r.trigger, 40)}` : 'きっかけ：（未定）' }))));
+}
 function updateRelationRows() {
   if (sel.cards.size !== 1) return;
   const c = cardById([...sel.cards][0]); if (!c) return;
@@ -1062,6 +1406,129 @@ function updateRelationRows() {
     const o = cardById(l.a === c.id ? l.b : l.a); $('.who', row).textContent = shortName(o);
   });
 }
+
+/* ---------- 関係の詳細 ---------- */
+function paintLinkHeader(l) {
+  const n = $('.lhsum', drBody); if (!n || sel.link !== l.id) return;
+  const A = cardById(l.a), B = cardById(l.b), k = kindOf(l.kind);
+  n.textContent = `${l.label || '（関係の名前なし）'}｜${k.name}｜${dirText(l, A, B)}`;
+  const wrap = n.closest('.lsum'); if (wrap) wrap.style.setProperty('--lc', k.color);
+}
+function drawerLink(l) {
+  drTitle.textContent = '関係の詳細';
+  const A = cardById(l.a), B = cardById(l.b), k = kindOf(l.kind);
+  const who = c => h('button', { type: 'button', class: 'who big', title: 'この人物のカードを開く', onclick: () => { select([c.id]); focusCard(c.id); } }, nameOf(c));
+  const head = h('div', { class: 'lhead' }, who(A), h('span', { class: 'lsep', text: '―' }), who(B));
+  const sum = h('div', { class: 'lsum', style: `--lc:${k.color}` },
+    h('span', { class: 'lhsum', text: `${l.label || '（関係の名前なし）'}｜${k.name}｜${dirText(l, A, B)}` }),
+    h('button', { type: 'button', class: 'rel-more', 'data-role': 'edit-basic', onclick: () => openLinkPop(l.id, { focus: true }) }, '名前・種類・線の形を編集'));
+
+  /* 他人への態度：A→B と B→A を別々に（矢印方向や関係の種類とは別の情報） */
+  const attBox = (from, to, key) => {
+    const ta = h('textarea', { rows: '2', 'data-role': 'att-' + key, placeholder: '例：好意を持っている（本人は自覚していない）', 'aria-label': `${nameOf(from)}から${nameOf(to)}への態度` });
+    ta.value = l[key];
+    const set = () => { l[key] = ta.value; autosize(ta); typingCommit(); };
+    ta.addEventListener('input', set);
+    const chips = h('div', { class: 'chips' }, ATTITUDES.map(t => h('button', { type: 'button', class: 'achip',
+      onclick: () => { if (!ta.value.includes(t)) ta.value = ta.value.trim() ? ta.value.replace(/[、\s]+$/, '') + '、' + t : t; set(); ta.focus(); } }, t)));
+    requestAnimationFrame(() => autosize(ta));
+    return h('div', { class: 'fld' }, h('span', { class: 'fl', text: `${nameOf(from)} → ${nameOf(to)}：どう思っているか` }), ta, chips);
+  };
+
+  /* 他人との違い：2人の違いを、分類つきで何件でも */
+  const diffs = h('div');
+  const renderDiffs = (focusLast = false) => {
+    diffs.textContent = '';
+    if (!l.diffs.length) diffs.append(h('p', { class: 'muted', text: 'まだ書かれていません。価値観・得意不得意・行動方針などの違いを書けます。' }));
+    l.diffs.forEach((d, i) => {
+      const cat = h('select', { 'aria-label': '違いの分類' }, DIFF_CATS.map(c => h('option', { value: c.id, text: c.name })));
+      cat.value = d.cat; cat.addEventListener('change', () => { d.cat = cat.value; commit(); });
+      const ta = h('textarea', { rows: '2', 'aria-label': '違いのメモ', placeholder: '例：Aは結果を重視するが、Bは過程を大切にする。' });
+      ta.value = d.text; ta.addEventListener('input', () => { d.text = ta.value; autosize(ta); typingCommit(); });
+      requestAnimationFrame(() => autosize(ta));
+      diffs.append(h('div', { class: 'diffitem' },
+        h('div', { class: 'cf-head' }, cat, h('button', { type: 'button', class: 'x', title: 'この違いを削除', 'aria-label': 'この違いを削除', onclick: () => { l.diffs.splice(i, 1); commit(); renderDiffs(); } }, '×')), ta));
+      if (focusLast && i === l.diffs.length - 1) ta.focus();
+    });
+  };
+
+  /* 関係の変化：複数の記録を、順序のわかる形で */
+  const chgBox = h('div', { class: 'chglist' });
+  const renderChanges = () => {
+    chgBox.textContent = '';
+    if (!l.changes.length) chgBox.append(h('p', { class: 'muted', text: 'まだ記録がありません。物語の中で2人の関係がどう動くかを、順に書いていけます。' }));
+    l.changes.forEach((r, i) => chgBox.append(changeItem(l, r, i, renderChanges)));
+  };
+  const addChg = h('button', { type: 'button', class: 'add-btn', 'data-role': 'add-change', onclick: () => {
+    const prev = l.changes[l.changes.length - 1];
+    const r = { id: uid(), pattern: '', patternText: '', before: prev ? prev.after : '', trigger: '', after: '', impact: '', note: '' };   // 前の記録の「変化後」を、次の「変化前」の初期値にする
+    l.changes.push(r); openRecs.add(r.id); commit(); renderChanges();
+    const last = chgBox.lastElementChild; if (last) { last.scrollIntoView({ block: 'nearest' }); const s = $('select', last); if (s) s.focus(); }
+  } }, '変化を追加');
+
+  drBody.append(head, sum,
+    h('div', { class: 'sec', text: '他人への態度' }),
+    h('p', { class: 'muted', text: 'ふたりの気持ちは同じとは限りません。それぞれ別に書けます。' }),
+    attBox(A, B, 'attAB'), attBox(B, A, 'attBA'),
+    h('div', { class: 'sec', text: '他人との違い' }), diffs,
+    h('button', { type: 'button', class: 'add-btn', 'data-role': 'add-diff', onclick: () => { l.diffs.push({ id: uid(), cat: 'values', text: '' }); commit(); renderDiffs(true); } }, '違いを追加'),
+    h('div', { class: 'sec', text: '関係の変化' }), chgBox, addChg,
+    h('button', { type: 'button', class: 'danger-btn', onclick: deleteSelection }, 'この関係を削除'));
+  renderDiffs(); renderChanges();
+}
+function changeItem(l, r, i, rerender) {
+  const open = openRecs.has(r.id);
+  const baEl = h('span', { class: 'ba' }), trEl = h('span', { class: 'tr' });
+  const paint = () => { baEl.textContent = `${r.before || '（未定）'} → ${r.after || '（未定）'}`; trEl.textContent = r.trigger ? `きっかけ：${clip(r.trigger, 60)}` : 'きっかけ：（未定）'; };
+  paint();
+  const toggle = h('button', { type: 'button', class: 'chg-sum', 'aria-expanded': String(open),
+    onclick: () => { if (openRecs.has(r.id)) openRecs.delete(r.id); else openRecs.add(r.id); rerender(); } }, baEl, trEl);
+  const move = d => () => { const j = i + d; if (j < 0 || j >= l.changes.length) return; [l.changes[i], l.changes[j]] = [l.changes[j], l.changes[i]]; commit(); rerender(); };
+  const head = h('div', { class: 'chg-head' }, h('span', { class: 'no', text: String(i + 1) }), toggle,
+    h('div', { class: 'chg-ops' },
+      h('button', { type: 'button', class: 'x', title: '順番を前へ', 'aria-label': `${i + 1}つ目を前へ`, disabled: i === 0, onclick: move(-1) }, '↑'),
+      h('button', { type: 'button', class: 'x', title: '順番を後ろへ', 'aria-label': `${i + 1}つ目を後ろへ`, disabled: i === l.changes.length - 1, onclick: move(1) }, '↓'),
+      h('button', { type: 'button', class: 'x', 'data-role': 'chg-delete', title: 'この記録を削除', 'aria-label': `${i + 1}つ目を削除`,
+        onclick: () => { l.changes.splice(i, 1); openRecs.delete(r.id); commit(); rerender(); toast('変化の記録を削除しました。', { label: '元に戻す', fn: undo }); } }, '×')));
+  const item = h('div', { class: 'chg' + (open ? ' open' : ''), 'data-rec': r.id }, head);
+  if (open) item.append(changeForm(r, paint));
+  return item;
+}
+function changeForm(r, paint) {
+  const patSel = h('select', { 'aria-label': '変化パターン', 'data-role': 'pattern' }, h('option', { value: '', text: '変化パターンなし' }),
+    PATTERNS.map(p => h('option', { value: p.id, text: `${p.before} → ${p.after}` })), h('option', { value: 'other', text: 'その他（自由入力）' }));
+  patSel.value = r.pattern;
+  const other = h('input', { type: 'text', placeholder: 'パターン名（自由入力）', maxlength: '60', value: r.patternText, 'aria-label': 'パターン名' });
+  other.hidden = r.pattern !== 'other';
+  const before = h('input', { type: 'text', placeholder: '例：友人', maxlength: '200', value: r.before, 'aria-label': '変化前の関係', 'data-role': 'before' });
+  const after = h('input', { type: 'text', placeholder: '例：信頼できる相手', maxlength: '200', value: r.after, 'aria-label': '変化後の関係', 'data-role': 'after' });
+  const area = (key, ph, rows) => {
+    const t = h('textarea', { rows: String(rows), placeholder: ph, 'data-role': key, 'aria-label': key }); t.value = r[key];
+    t.addEventListener('input', () => { r[key] = t.value; autosize(t); paint(); typingCommit(); });
+    requestAnimationFrame(() => autosize(t)); return t;
+  };
+  /* パターンを選ぶと文言を初期値として入れる（すでに自分で書き換えた内容は上書きしない）。入れたあとも自由に編集できる */
+  patSel.addEventListener('change', () => {
+    const prev = patternById(r.pattern), next = patternById(patSel.value);
+    if (next) {
+      if (!r.before || (prev && r.before === prev.before)) r.before = next.before;
+      if (!r.after || (prev && r.after === prev.after)) r.after = next.after;
+      before.value = r.before; after.value = r.after;
+    }
+    r.pattern = patSel.value; other.hidden = r.pattern !== 'other'; paint(); commit();
+  });
+  other.addEventListener('input', () => { r.patternText = other.value; typingCommit(); });
+  before.addEventListener('input', () => { r.before = before.value; paint(); typingCommit(); });
+  after.addEventListener('input', () => { r.after = after.value; paint(); typingCommit(); });
+  const blk = (label, ...els) => h('div', { class: 'fld' }, h('span', { class: 'fl', text: label }), ...els);
+  return h('div', { class: 'chgform' },
+    blk('変化パターン', patSel, other), blk('変化前の関係', before),
+    blk('変化のきっかけ（出来事・会話・行動・発見）', area('trigger', 'どんな出来事・会話・行動・発見が、変化を引き起こしたか', 3)),
+    blk('変化後の関係', after),
+    blk('物語上の影響（行動・感情・ほかの人物との関係・今後の展開）', area('impact', 'この変化で、それぞれの行動や感情、今後の展開がどう変わるか', 3)),
+    blk('補足メモ', area('note', '', 2)));
+}
+
 function drawerMulti() {
   drTitle.textContent = `${sel.cards.size}人を選択中`;
   const sw = h('div', { class: 'colors' });
@@ -1078,7 +1545,7 @@ function drawerList() {
     const items = map.cards.filter(c => !t || (c.name + c.kana + c.role).toLowerCase().includes(t));
     if (!items.length) ul.append(h('li', { class: 'muted', text: map.cards.length ? '見つかりませんでした。' : 'まだ人物がいません。' }));
     items.forEach(c => ul.append(h('li', null, h('button', { type: 'button', class: 'prow', onclick: () => { select([c.id]); focusCard(c.id); } },
-      h('i', { style: `background:${colorOf(c.color).hex}` }), h('span', { class: 'pn', text: c.name || '名前のない人物' }), h('span', { class: 'pr', text: c.role })))));
+      (c.img ? h('img', { class: 'pimg', src: c.img, alt: '' }) : h('i', { style: `background:${colorOf(c.color).hex}` })), h('span', { class: 'pn', text: c.name || '名前のない人物' }), h('span', { class: 'pr', text: c.role })))));
   };
   q.addEventListener('input', fill); fill();
   drBody.append(q, ul, h('ul', { class: 'tips' },
@@ -1198,21 +1665,64 @@ function importFile(file) {
   r.readAsText(file);
 }
 function loadSample() {
-  const mk = (name, kana, role, sum, color, x, y, fields) => ({ id: uid(), x, y, name, kana, role, sum, color,
-    fields: DEFAULT_FIELDS.map(k => ({ k, v: (fields && fields[k]) || '' })), memo: '' });
-  const akari = mk('灯', 'あかり', '主人公', '夜の図書館で働く見習い司書。本の中の声が聞こえる。', 'ai', -116, -60, { 外見: '栗色の短い髪。袖の長すぎる制服。', 性格: '好奇心が強く、頑固。' });
+  const mk = (name, kana, role, sum, color, x, y, fields, inner) => ({ id: uid(), x, y, name, kana, role, sum, color,
+    fields: DEFAULT_FIELDS.map(k => ({ k, v: (fields && fields[k]) || '' })), memo: '', inner: inner || '', img: '', imgY: 25 });
+  const akari = mk('灯', 'あかり', '主人公', '夜の図書館で働く見習い司書。本の中の声が聞こえる。', 'ai', -116, -60,
+    { 外見: '栗色の短い髪。袖の長すぎる制服。', 性格: '好奇心が強く、頑固。', '目的・動機': '禁書庫に眠る、失われた記憶の手がかりを探す。' },
+    '普段は強気に振る舞うが、本当は自分の居場所に自信がない。');
   const souma = mk('蒼真', 'そうま', '幼なじみ', '灯を追って王都へ出てきた。', 'sora', -520, -230);
   const mina = mk('ミナ', '', '灯の妹', '', 'wakatake', -520, 120);
   const noel = mk('ノエル', '', '老司書', '灯の師匠。禁書庫の鍵を持つ。', 'fuji', 270, -250);
   const kuro = mk('黒川', 'くろかわ', '宿敵', '禁書を集める蔵書家。', 'shu', 290, 120);
   const rena = mk('玲奈', 'れな', '学院の首席', '', 'sakura', -230, -450);
-  const L = (a, b, label, kind, dir = 'none') => ({ id: uid(), a: a.id, b: b.id, label, kind, dir });
+  const rec = (pattern, before, trigger, after, impact, note) => ({ id: uid(), pattern, patternText: '', before, trigger, after, impact: impact || '', note: note || '' });
+  const L = (a, b, label, kind, dir, extra) => blankLink(a.id, b.id, Object.assign({ label, kind, dir: dir || 'none' }, extra || {}));
   tx(() => {
     map.cards = [akari, souma, mina, noel, kuro, rena];
-    map.links = [L(akari, souma, '幼なじみ', 'friend'), L(souma, akari, '片思い', 'love', 'ab'), L(akari, mina, '姉妹', 'family'),
-      L(akari, noel, '師弟', 'master'), L(akari, kuro, '宿敵', 'enemy'), L(rena, souma, '好敵手', 'rival', 'both'), L(kuro, noel, 'かつての同門', 'secret')];
+    map.links = [
+      L(akari, souma, '幼なじみ', 'friend', 'none', {
+        attAB: '気心が知れていて、いちばん頼りにしている', attBA: '好意を持っている（本人は隠している）',
+        diffs: [{ id: uid(), cat: 'values', text: '灯は真実を知ることを優先し、蒼真は灯の安全を優先する。' }],
+        changes: [
+          rec('trust', '友人', '禁書庫で、蒼真が身を挺して灯をかばう。', '信頼できる相手', '灯は初めて、ひとりで抱えていた秘密を蒼真に打ち明ける。'),
+          rec('special', '信頼できる相手', '', '特別な相手', '', '終盤の展開で使う予定（未定）')
+        ]
+      }),
+      L(souma, akari, '片思い', 'love', 'ab'), L(akari, mina, '姉妹', 'family'),
+      L(akari, noel, '師弟', 'master'), L(akari, kuro, '宿敵', 'enemy'),
+      L(rena, souma, '好敵手', 'rival', 'both', { attAB: '警戒している', attBA: '苦手意識がある' }), L(kuro, noel, 'かつての同門', 'secret')
+    ];
   });
   select([]); fullRender(); fit();
+}
+
+/* ---------- プロフィール画像 ----------
+   端末の容量（ブラウザの保存領域）を節約するため、長辺256pxのJPEGに縮小して保存する。 */
+function readImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!/^image\//.test(file.type)) { reject(new Error('type')); return; }
+    if (file.size > 15 * 1024 * 1024) { reject(new Error('size')); return; }
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const max = 256, sc = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+      const w = Math.max(1, Math.round(im.naturalWidth * sc)), hh = Math.max(1, Math.round(im.naturalHeight * sc));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, hh); g.drawImage(im, 0, 0, w, hh);
+      URL.revokeObjectURL(url); resolve(cv.toDataURL('image/jpeg', 0.85));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    im.src = url;
+  });
+}
+async function setCardImage(id, file) {
+  try {
+    const data = await readImage(file), c = cardById(id);
+    if (!c) return;
+    tx(() => { c.img = data; c.imgY = 25; });
+    syncCards(); drawLinks();
+    if (sel.cards.size === 1 && sel.cards.has(id)) renderDrawer();
+    toast('プロフィール画像を設定しました。');
+  } catch (e) { toast('画像を読み込めませんでした。PNG・JPEG・WebPなどの画像を選んでください。'); }
 }
 
 /* =========================================================================
@@ -1266,6 +1776,15 @@ $('#fileBtn').onclick = e => { e.stopPropagation(); openMenu(fileMenu, e.current
 $('#exportBtn').onclick = exportMap;
 $('#importBtn').onclick = () => { closeMenus(); $('#fileInput').click(); };
 $('#fileInput').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
+$('#imgInput').onchange = e => { const f = e.target.files[0]; if (f && imgTarget) setCardImage(imgTarget, f); e.target.value = ''; };
+canvas.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+canvas.addEventListener('drop', e => {            // 画像ファイルを人物カードの上にドロップすると、プロフィール画像になる
+  e.preventDefault();
+  const f = [...(e.dataTransfer ? e.dataTransfer.files : [])].find(x => x.type.startsWith('image/'));
+  if (!f) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY), card = el && el.closest('.card');
+  if (card) setCardImage(card.dataset.id, f); else toast('画像は、人物カードの上にドロップしてください。');
+});
 function paintWheel() { $$all('[data-wheel]', fileMenu).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.wheel === store.ui.wheel))); }
 $$all('[data-wheel]', fileMenu).forEach(b => b.onclick = () => { store.ui.wheel = b.dataset.wheel; paintWheel(); save(); });
 $('#mapName').addEventListener('input', e => { map.name = e.target.value; document.title = `${map.name || '人物マップ'}｜人物マップ`; save(); });

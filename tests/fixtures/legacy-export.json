@@ -1,0 +1,250 @@
+{
+ "app": "jinbutsu-map",
+ "v": 1,
+ "maps": [
+  {
+   "id": "aywsjx6xrg",
+   "name": "名前のないマップ",
+   "cards": [
+    {
+     "id": "6lkjdi6zfb",
+     "x": -119,
+     "y": -41,
+     "name": "灯",
+     "kana": "あかり",
+     "role": "主人公",
+     "sum": "夜の図書館で働く見習い司書。本の中の声が聞こえる。",
+     "color": "ai",
+     "fields": [
+      {
+       "k": "外見",
+       "v": "栗色の短い髪。袖の長すぎる制服。"
+      },
+      {
+       "k": "性格",
+       "v": "好奇心が強く、頑固。"
+      },
+      {
+       "k": "目的・動機",
+       "v": ""
+      },
+      {
+       "k": "過去",
+       "v": ""
+      }
+     ],
+     "memo": ""
+    },
+    {
+     "id": "7h3eer6zfb",
+     "x": -338,
+     "y": -278,
+     "name": "蒼真",
+     "kana": "そうま",
+     "role": "幼なじみ",
+     "sum": "灯を追って王都へ出てきた。",
+     "color": "sora",
+     "fields": [
+      {
+       "k": "外見",
+       "v": ""
+      },
+      {
+       "k": "性格",
+       "v": ""
+      },
+      {
+       "k": "目的・動機",
+       "v": ""
+      },
+      {
+       "k": "過去",
+       "v": ""
+      }
+     ],
+     "memo": ""
+    },
+    {
+     "id": "m7j8lu6zfb",
+     "x": -381,
+     "y": 203,
+     "name": "ミナ",
+     "kana": "",
+     "role": "灯の妹",
+     "sum": "",
+     "color": "wakatake",
+     "fields": [
+      {
+       "k": "外見",
+       "v": ""
+      },
+      {
+       "k": "性格",
+       "v": ""
+      },
+      {
+       "k": "目的・動機",
+       "v": ""
+      },
+      {
+       "k": "過去",
+       "v": ""
+      }
+     ],
+     "memo": ""
+    },
+    {
+     "id": "dxetab6zfb",
+     "x": 172,
+     "y": -178,
+     "name": "ノエル",
+     "kana": "",
+     "role": "老司書",
+     "sum": "灯の師匠。禁書庫の鍵を持つ。",
+     "color": "fuji",
+     "fields": [
+      {
+       "k": "外見",
+       "v": ""
+      },
+      {
+       "k": "性格",
+       "v": ""
+      },
+      {
+       "k": "目的・動機",
+       "v": ""
+      },
+      {
+       "k": "過去",
+       "v": ""
+      }
+     ],
+     "memo": ""
+    },
+    {
+     "id": "kd0prf6zfb",
+     "x": 167,
+     "y": 139,
+     "name": "黒川",
+     "kana": "くろかわ",
+     "role": "宿敵",
+     "sum": "禁書を集める蔵書家。",
+     "color": "shu",
+     "fields": [
+      {
+       "k": "外見",
+       "v": ""
+      },
+      {
+       "k": "性格",
+       "v": ""
+      },
+      {
+       "k": "目的・動機",
+       "v": ""
+      },
+      {
+       "k": "過去",
+       "v": ""
+      }
+     ],
+     "memo": ""
+    },
+    {
+     "id": "jv6qb36zfb",
+     "x": -324,
+     "y": -595,
+     "name": "玲奈",
+     "kana": "れな",
+     "role": "学院の首席",
+     "sum": "",
+     "color": "sakura",
+     "fields": [
+      {
+       "k": "外見",
+       "v": ""
+      },
+      {
+       "k": "性格",
+       "v": ""
+      },
+      {
+       "k": "目的・動機",
+       "v": ""
+      },
+      {
+       "k": "過去",
+       "v": ""
+      }
+     ],
+     "memo": ""
+    }
+   ],
+   "links": [
+    {
+     "id": "g6yw896zfc",
+     "a": "6lkjdi6zfb",
+     "b": "7h3eer6zfb",
+     "label": "幼なじみ",
+     "kind": "friend",
+     "dir": "none"
+    },
+    {
+     "id": "ginq4z6zfc",
+     "a": "7h3eer6zfb",
+     "b": "6lkjdi6zfb",
+     "label": "片思い",
+     "kind": "love",
+     "dir": "both"
+    },
+    {
+     "id": "8wg9uw6zfc",
+     "a": "6lkjdi6zfb",
+     "b": "m7j8lu6zfb",
+     "label": "姉妹",
+     "kind": "family",
+     "dir": "none"
+    },
+    {
+     "id": "im6l6q6zfc",
+     "a": "6lkjdi6zfb",
+     "b": "dxetab6zfb",
+     "label": "師弟",
+     "kind": "master",
+     "dir": "none"
+    },
+    {
+     "id": "yzfbsh6zfc",
+     "a": "6lkjdi6zfb",
+     "b": "kd0prf6zfb",
+     "label": "宿敵",
+     "kind": "enemy",
+     "dir": "none"
+    },
+    {
+     "id": "t6k5ru6zfc",
+     "a": "jv6qb36zfb",
+     "b": "7h3eer6zfb",
+     "label": "好敵手",
+     "kind": "rival",
+     "dir": "both"
+    },
+    {
+     "id": "thkjia6zfc",
+     "a": "kd0prf6zfb",
+     "b": "dxetab6zfb",
+     "label": "かつての同門",
+     "kind": "secret",
+     "dir": "none"
+    }
+   ],
+   "legend": {},
+   "view": {
+    "x": 532.3654597110359,
+    "y": 549.7642231026106,
+    "k": 0.7861766888036404
+   }
+  }
+ ]
+}
