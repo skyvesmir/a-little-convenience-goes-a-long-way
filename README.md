@@ -36,15 +36,9 @@
 - **ダウンロードして使う**: ファイルを保存して、ブラウザで開くだけです。
 - **GitHub Pages で使う**: 下の手順で公開すると、ブラウザからそのまま開けます。
 
-## GitHub Pages で公開する
+## GitHub Pages
 
-`index.html` は、ツールの入口になるトップページです。公開するには、次の設定をします。
-
-1. このリポジトリの **Settings** → **Pages** を開く
-2. **Source** を「Deploy from a branch」にする
-3. **Branch** を `main`、フォルダを `/ (root)` にして保存する
-
-しばらくすると、次の URL で開けるようになります。
+次の URL で開けます。
 
 ```
 https://skyvesmir.github.io/a-little-convenience-goes-a-long-way/
