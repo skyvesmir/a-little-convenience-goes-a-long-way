@@ -190,13 +190,13 @@ button{ font-family:inherit; color:inherit; }
 .lg-toggle{ padding:2px 0; text-align:left; font:700 12px var(--ui); color:var(--indigo); background:transparent; border:0; cursor:pointer; }
 .lg-toggle:hover{ text-decoration:underline; }
 
-.empty{
+.emptystate{
   position:fixed; z-index:5; left:calc((100vw - var(--dw)) / 2); top:46%; transform:translate(-50%,-50%);
   width:min(420px, calc(100vw - var(--dw) - 40px)); text-align:center; pointer-events:none;
 }
-.empty h2{ margin:0 0 10px; font:900 26px/1.4 var(--mincho); }
-.empty p{ margin:0 0 16px; font-size:14px; color:var(--sub); }
-.empty .tb{ pointer-events:auto; border:1px solid var(--indigo); color:var(--indigo); background:var(--paper); }
+.emptystate h2{ margin:0 0 10px; font:900 26px/1.4 var(--mincho); }
+.emptystate p{ margin:0 0 16px; font-size:14px; color:var(--sub); }
+.emptystate .tb{ pointer-events:auto; border:1px solid var(--indigo); color:var(--indigo); background:var(--paper); }
 
 .toast{
   position:fixed; z-index:40; left:calc((100vw - var(--dw)) / 2); bottom:76px; transform:translateX(-50%);
@@ -440,7 +440,7 @@ body.drawer-open #drawer{ transform:none; }
 
 <div id="legend" class="legend" hidden></div>
 
-<div id="empty" class="empty" hidden>
+<div id="empty" class="emptystate" hidden>
   <h2>ここに、最初の人物を置きましょう。</h2>
   <p>何もないところをダブルクリック（スマホはダブルタップ）すると、人物カードができます。カードのふちの丸い点から線を引くと、関係をつなげられます。</p>
   <button id="sampleBtn" class="tb" type="button">サンプルで操作を試す</button>
@@ -498,7 +498,11 @@ function sv(tag, attrs) {
   for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
   return e;
 }
-const autosize = t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; };
+const autosize = t => {            // 入力に合わせて高さを広げ、長くなったら一定の高さで止めて、中をスクロールさせる
+  t.style.height = 'auto';
+  const need = t.scrollHeight + 2, cap = Math.max(160, Math.round(innerHeight * 0.4));
+  t.style.height = Math.min(need, cap) + 'px'; t.style.overflowY = need > cap ? 'auto' : 'hidden';
+};
 
 /* =========================================================================
    定数
@@ -547,7 +551,8 @@ const DIFF_CATS = [
 ];
 /* 他人への態度の書き出し例（自由記述もできる） */
 const ATTITUDES = ['好意を持っている', '尊敬している', '信頼している', '苦手意識がある', '嫉妬している', '警戒している', '相手を誤解している', '自覚と実際の態度が違う'];
-const MAX_PTS = 8;   // 1本の線に付けられる「曲げの点」の数
+const MAX_PTS = 8;
+const MAX_DIFFS = 100, MAX_CHANGES = 500, MAX_FIELDS = 40;   // 件数の上限（画面側でも同じ上限で止める）   // 1本の線に付けられる「曲げの点」の数
 
 const isMobile = () => innerWidth < 760;
 
@@ -563,9 +568,9 @@ function normalizeMap(m) {
     id: str(c.id, 32) || uid(), x: num(c.x, 0), y: num(c.y, 0),
     name: str(c.name, 60), kana: str(c.kana, 60), role: str(c.role, 60), sum: str(c.sum, 300),
     color: COLORS.some(k => k.id === c.color) ? c.color : 'ai',
-    fields: (Array.isArray(c.fields) ? c.fields : []).slice(0, 40).map(f => ({ k: str(f && f.k, 40), v: str(f && f.v, 20000) })),
+    fields: (Array.isArray(c.fields) ? c.fields : []).slice(0, MAX_FIELDS).map(f => ({ k: str(f && f.k, 40), v: str(f && f.v, 20000) })),
     memo: str(c.memo, 50000),
-    inner: str(c.inner, 5000),
+    inner: str(c.inner, 20000),
     img: typeof c.img === 'string' && c.img.startsWith('data:image/') && c.img.length < 700000 ? c.img : '',
     imgY: clamp(num(c.imgY, 25), 0, 100)
   }));
@@ -578,16 +583,16 @@ function normalizeMap(m) {
       id: str(l.id, 32) || uid(), a: l.a, b: l.b, label: str(l.label, 40),
       kind: KINDS.some(k => k.id === l.kind) ? l.kind : 'other',
       dir: ['none', 'ab', 'ba', 'both'].includes(l.dir) ? l.dir : 'none',
-      attAB: str(l.attAB, 300), attBA: str(l.attBA, 300),
+      attAB: str(l.attAB, 20000), attBA: str(l.attBA, 20000),
       shape: l.shape === 'straight' ? 'straight' : 'curve',
       pts: (Array.isArray(l.pts) ? l.pts : []).filter(p => p && Number.isFinite(p.u) && Number.isFinite(p.v)).slice(0, MAX_PTS).map(p => ({ u: clamp(p.u, -5, 6), v: clamp(p.v, -6, 6) })),
-      diffs: (Array.isArray(l.diffs) ? l.diffs : []).slice(0, 30).map(d => ({
-        id: str(d && d.id, 32) || uid(), cat: DIFF_CATS.some(c => c.id === (d && d.cat)) ? d.cat : 'other', text: str(d && d.text, 5000) })),
-      changes: (Array.isArray(l.changes) ? l.changes : []).slice(0, 200).map(r => ({
+      diffs: (Array.isArray(l.diffs) ? l.diffs : []).slice(0, MAX_DIFFS).map(d => ({
+        id: str(d && d.id, 32) || uid(), cat: DIFF_CATS.some(c => c.id === (d && d.cat)) ? d.cat : 'other', text: str(d && d.text, 20000) })),
+      changes: (Array.isArray(l.changes) ? l.changes : []).slice(0, MAX_CHANGES).map(r => ({
         id: str(r && r.id, 32) || uid(),
         pattern: r && (r.pattern === 'other' || PATTERNS.some(p => p.id === r.pattern)) ? r.pattern : '',
-        patternText: str(r && r.patternText, 60), before: str(r && r.before, 200), trigger: str(r && r.trigger, 3000),
-        after: str(r && r.after, 200), impact: str(r && r.impact, 5000), note: str(r && r.note, 5000) }))
+        patternText: str(r && r.patternText, 60), before: str(r && r.before, 200), trigger: str(r && r.trigger, 20000),
+        after: str(r && r.after, 200), impact: str(r && r.impact, 20000), note: str(r && r.note, 20000) }))
     }));
   const legend = {};
   if (m && m.legend && typeof m.legend === 'object') COLORS.forEach(c => { if (typeof m.legend[c.id] === 'string') legend[c.id] = m.legend[c.id].slice(0, 30); });
@@ -1278,9 +1283,10 @@ function renderDrawer() {
 }
 function onCardEdited() { syncCards(); drawLinks(); renderLegend(); typingCommit(); }
 
-function textField(label, get, set, { multi = false, ph = '', cls = '', role = '' } = {}) {
+function textField(label, get, set, { multi = false, ph = '', cls = '', role = '', max = 0 } = {}) {
   const el = multi ? h('textarea', { rows: '2', placeholder: ph, class: cls }) : h('input', { type: 'text', placeholder: ph, class: cls });
   el.value = get(); if (role) el.setAttribute('data-role', role);
+  if (max) el.setAttribute('maxlength', String(max));
   el.addEventListener('input', () => { set(el.value); if (multi) autosize(el); onCardEdited(); updateRelationRows(); });
   if (multi) requestAnimationFrame(() => autosize(el));
   return h('label', { class: 'fld' }, h('span', { class: 'fl', text: label }), el);
@@ -1319,19 +1325,19 @@ function drawerCard(c) {
   COLORS.forEach(col => sw.append(h('button', { type: 'button', class: 'sw' + (c.color === col.id ? ' on' : ''), style: `--sw:${col.hex}`, title: col.name, role: 'radio', 'aria-label': col.name, 'aria-checked': String(c.color === col.id), 'data-c': col.id,
     onclick: () => { c.color = col.id; $$all('.sw', sw).forEach(b => { const on = b.dataset.c === c.color; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }); commit(); syncCards(); renderLegend(); renderRelationsOnly(); } })));
   drBody.append(sw, imageBlock(c),
-    textField('名前', () => c.name, v => { c.name = v; }, { cls: 'name', ph: '名前', role: 'name' }),
-    textField('よみ', () => c.kana, v => { c.kana = v; }, { ph: 'ふりがな' }),
-    textField('役割・肩書き', () => c.role, v => { c.role = v; }, { ph: '例：主人公／王女／探偵' }),
-    textField('一言（カードに表示されます）', () => c.sum, v => { c.sum = v; }, { multi: true, ph: '例：夜の図書館で働く見習い司書。' }),
-    textField('隠れた一面（表向きの性格とは違う面）', () => c.inner, v => { c.inner = v; }, { multi: true, role: 'inner', ph: '例：普段は自信満々だが、実は自分の将来に迷っている。' }));
+    textField('名前', () => c.name, v => { c.name = v; }, { cls: 'name', ph: '名前', role: 'name', max: 60 }),
+    textField('よみ', () => c.kana, v => { c.kana = v; }, { ph: 'ふりがな', max: 60 }),
+    textField('役割・肩書き', () => c.role, v => { c.role = v; }, { ph: '例：主人公／王女／探偵', max: 60 }),
+    textField('一言（カードに表示されます）', () => c.sum, v => { c.sum = v; }, { multi: true, max: 300, ph: '例：夜の図書館で働く見習い司書。' }),
+    textField('隠れた一面（表向きの性格とは違う面）', () => c.inner, v => { c.inner = v; }, { multi: true, max: 20000, role: 'inner', ph: '例：普段は自信満々だが、実は自分の将来に迷っている。' }));
 
   const fields = h('div');
   const renderFields = (focusLast = false) => {
     fields.textContent = '';
     c.fields.forEach((f, i) => {
-      const ta = h('textarea', { rows: '2' }); ta.value = f.v; ta.setAttribute('aria-label', f.k || '項目');
+      const ta = h('textarea', { rows: '2', maxlength: '20000' }); ta.value = f.v; ta.setAttribute('aria-label', f.k || '項目');
       ta.addEventListener('input', () => { f.v = ta.value; autosize(ta); typingCommit(); });
-      const nm = h('input', { type: 'text', value: f.k, placeholder: '項目名', 'aria-label': '項目名' });
+      const nm = h('input', { type: 'text', value: f.k, placeholder: '項目名', maxlength: '40', 'aria-label': '項目名' });
       nm.addEventListener('input', () => { f.k = nm.value; ta.setAttribute('aria-label', f.k || '項目'); typingCommit(); });
       fields.append(h('div', { class: 'cf' },
         h('div', { class: 'cf-head' }, nm, h('button', { type: 'button', class: 'x', 'aria-label': `${f.k || '項目'}を削除`, title: 'この項目を削除', onclick: () => { c.fields.splice(i, 1); commit(); renderFields(); } }, '×')), ta));
@@ -1340,14 +1346,16 @@ function drawerCard(c) {
     });
   };
   renderFields();
-  const memo = h('textarea', { class: 'memo', rows: '5', placeholder: '設定・エピソード・セリフの癖など、自由に書けます。' }); memo.value = c.memo;
+  const memo = h('textarea', { class: 'memo', rows: '5', maxlength: '50000', placeholder: '設定・エピソード・セリフの癖など、自由に書けます。' }); memo.value = c.memo;
   memo.addEventListener('input', () => { c.memo = memo.value; autosize(memo); typingCommit(); });
   requestAnimationFrame(() => autosize(memo));
 
   drBody.append(h('div', { class: 'sec', text: '設定' }), fields,
-    h('button', { type: 'button', class: 'add-btn', onclick: () => { c.fields.push({ k: '', v: '' }); commit(); renderFields(true); } }, '項目を追加'),
+    h('button', { type: 'button', class: 'add-btn', onclick: () => { if (c.fields.length >= MAX_FIELDS) { toast(`設定項目は${MAX_FIELDS}個までです。`); return; } c.fields.push({ k: '', v: '' }); commit(); renderFields(true); } }, '項目を追加'),
     h('div', { class: 'sec', text: 'メモ' }), memo,
-    h('div', { class: 'sec', text: '関係（態度・違い・変化）' }), h('div', { id: 'rels' }),
+    h('div', { class: 'sec', text: '関係（態度・違い・変化）' }),
+    h('p', { class: 'muted', text: 'ここは「この人物と、ほかの人物との間」のことを書く場所です。「詳細」から、お互いへの態度・違い・関係の変化を書けます。' }),
+    h('div', { id: 'rels' }),
     h('div', { class: 'sec', text: 'この人物が関わる関係の変化' }), h('div', { id: 'pchg' }),
     h('button', { type: 'button', class: 'danger-btn', onclick: deleteSelection }, 'この人物を削除'));
   renderRelationsOnly(); renderPersonChanges(c);
@@ -1425,7 +1433,7 @@ function drawerLink(l) {
 
   /* 他人への態度：A→B と B→A を別々に（矢印方向や関係の種類とは別の情報） */
   const attBox = (from, to, key) => {
-    const ta = h('textarea', { rows: '2', 'data-role': 'att-' + key, placeholder: '例：好意を持っている（本人は自覚していない）', 'aria-label': `${nameOf(from)}から${nameOf(to)}への態度` });
+    const ta = h('textarea', { rows: '2', 'data-role': 'att-' + key, maxlength: '20000', placeholder: '例：好意を持っている（本人は自覚していない）', 'aria-label': `${nameOf(from)}から${nameOf(to)}への態度` });
     ta.value = l[key];
     const set = () => { l[key] = ta.value; autosize(ta); typingCommit(); };
     ta.addEventListener('input', set);
@@ -1443,7 +1451,7 @@ function drawerLink(l) {
     l.diffs.forEach((d, i) => {
       const cat = h('select', { 'aria-label': '違いの分類' }, DIFF_CATS.map(c => h('option', { value: c.id, text: c.name })));
       cat.value = d.cat; cat.addEventListener('change', () => { d.cat = cat.value; commit(); });
-      const ta = h('textarea', { rows: '2', 'aria-label': '違いのメモ', placeholder: '例：Aは結果を重視するが、Bは過程を大切にする。' });
+      const ta = h('textarea', { rows: '2', 'aria-label': '違いのメモ', maxlength: '20000', placeholder: '例：Aは結果を重視するが、Bは過程を大切にする。' });
       ta.value = d.text; ta.addEventListener('input', () => { d.text = ta.value; autosize(ta); typingCommit(); });
       requestAnimationFrame(() => autosize(ta));
       diffs.append(h('div', { class: 'diffitem' },
@@ -1460,6 +1468,8 @@ function drawerLink(l) {
     l.changes.forEach((r, i) => chgBox.append(changeItem(l, r, i, renderChanges)));
   };
   const addChg = h('button', { type: 'button', class: 'add-btn', 'data-role': 'add-change', onclick: () => {
+    if (l.changes.length >= MAX_CHANGES) { toast(`変化の記録は1つの関係に${MAX_CHANGES}件までです。`); return; }
+    openRecs.clear();                                  // 新しい記録を開くとき、ほかの記録は畳んで画面を縦長にしない
     const prev = l.changes[l.changes.length - 1];
     const r = { id: uid(), pattern: '', patternText: '', before: prev ? prev.after : '', trigger: '', after: '', impact: '', note: '' };   // 前の記録の「変化後」を、次の「変化前」の初期値にする
     l.changes.push(r); openRecs.add(r.id); commit(); renderChanges();
@@ -1467,11 +1477,12 @@ function drawerLink(l) {
   } }, '変化を追加');
 
   drBody.append(head, sum,
+    h('p', { class: 'muted', text: 'この画面は「ふたりの間」のことを書く場所です。ひとりの設定（性格・目的・隠れた一面など）は、人物カードに書きます。' }),
     h('div', { class: 'sec', text: '他人への態度' }),
     h('p', { class: 'muted', text: 'ふたりの気持ちは同じとは限りません。それぞれ別に書けます。' }),
     attBox(A, B, 'attAB'), attBox(B, A, 'attBA'),
     h('div', { class: 'sec', text: '他人との違い' }), diffs,
-    h('button', { type: 'button', class: 'add-btn', 'data-role': 'add-diff', onclick: () => { l.diffs.push({ id: uid(), cat: 'values', text: '' }); commit(); renderDiffs(true); } }, '違いを追加'),
+    h('button', { type: 'button', class: 'add-btn', 'data-role': 'add-diff', onclick: () => { if (l.diffs.length >= MAX_DIFFS) { toast(`違いのメモは${MAX_DIFFS}件までです。`); return; } l.diffs.push({ id: uid(), cat: 'values', text: '' }); commit(); renderDiffs(true); } }, '違いを追加'),
     h('div', { class: 'sec', text: '関係の変化' }), chgBox, addChg,
     h('button', { type: 'button', class: 'danger-btn', onclick: deleteSelection }, 'この関係を削除'));
   renderDiffs(); renderChanges();
@@ -1503,7 +1514,7 @@ function changeForm(r, paint) {
   const before = h('input', { type: 'text', placeholder: '例：友人', maxlength: '200', value: r.before, 'aria-label': '変化前の関係', 'data-role': 'before' });
   const after = h('input', { type: 'text', placeholder: '例：信頼できる相手', maxlength: '200', value: r.after, 'aria-label': '変化後の関係', 'data-role': 'after' });
   const area = (key, ph, rows) => {
-    const t = h('textarea', { rows: String(rows), placeholder: ph, 'data-role': key, 'aria-label': key }); t.value = r[key];
+    const t = h('textarea', { rows: String(rows), placeholder: ph, maxlength: '20000', 'data-role': key, 'aria-label': key }); t.value = r[key];
     t.addEventListener('input', () => { r[key] = t.value; autosize(t); paint(); typingCommit(); });
     requestAnimationFrame(() => autosize(t)); return t;
   };

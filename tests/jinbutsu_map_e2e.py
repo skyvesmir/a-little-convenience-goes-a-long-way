@@ -439,10 +439,203 @@ def t_mobile(b):
     check("JSエラーなし", not pg.errors, pg.errors)
     pg.context.close()
 
+
+def set_goal_field(pg, text):
+    """人物カードの「目的・動機」欄に書き込む"""
+    return pg.evaluate("""t => { const cf=[...document.querySelectorAll('#drBody .cf')].find(c=>c.querySelector('.cf-head input').value==='目的・動機');
+        if(!cf) return false; const ta=cf.querySelector('textarea'); ta.value=t; ta.dispatchEvent(new Event('input',{bubbles:true})); return true; }""", text)
+
+def bend_from_quarter(pg):
+    m = cur(pg); v = m["view"]
+    P0 = poly_points(pg.evaluate("document.querySelector('.lk .hit').getAttribute('d')"))
+    q = P0[len(P0) // 4]; sx, sy = v["x"] + q[0] * v["k"], v["y"] + q[1] * v["k"]
+    pg.mouse.move(sx, sy); pg.mouse.down(); pg.mouse.move(sx + 6, sy + 40, steps=4); pg.mouse.move(sx + 30, sy + 150, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+
+def t_no_silent_loss(b):
+    print("\n[長い文章・件数：黙って消えない／画面が崩れない]")
+    pg = two_linked(b)
+    pg.click("[data-role=add-change]"); pg.wait_for_timeout(200)
+    pg.fill("[data-role=trigger]", "あ" * 4000); pg.fill("[data-role=att-attAB]", "い" * 500); pg.fill("[data-role=add-diff] >> xpath=preceding::textarea[1]", "") if False else None
+    h = pg.evaluate("document.querySelector('[data-role=trigger]').offsetHeight")
+    check("長い文章でも入力欄が伸び続けず、中をスクロールできる", h <= 900 * 0.4 + 6 and pg.evaluate("(()=>{const t=document.querySelector('[data-role=trigger]');return t.scrollHeight>t.clientHeight})()"), h)
+    check("ドロワーが横にはみ出さない", pg.evaluate("(()=>{const d=document.getElementById('drBody');return d.scrollWidth<=d.clientWidth+1})()"))
+    pg.reload(wait_until="load"); pg.wait_for_timeout(700)
+    l = cur(pg)["links"][0]
+    check("上限内の長文は、再読み込み後も1文字も欠けない", len(l["changes"][0]["trigger"]) == 4000 and len(l["attAB"]) == 500, (len(l["changes"][0]["trigger"]), len(l["attAB"])))
+    open_link_detail(pg, "幼なじみ")
+    attrs = pg.evaluate("""() => { const q=s=>{const e=document.querySelector(s); return e && e.getAttribute('maxlength')}; return [q('[data-role=att-attAB]'), q('[data-role=att-attBA]')]; }""")
+    check("入力欄に保存と同じ上限（maxlength）が付いている（超えた分を黙って切らない）", attrs == ["20000", "20000"], attrs)
+    # 変化記録を複数登録しても縦長にならない（追加すると他は畳まれる）
+    for _ in range(5):
+        pg.click("[data-role=add-change]"); pg.wait_for_timeout(120)
+    check("変化記録を増やしても、開いている編集欄は1つだけ（画面が縦長にならない）", pg.evaluate("document.querySelectorAll('.chg.open').length") == 1 and pg.evaluate("document.querySelectorAll('.chg').length") == 6, pg.evaluate("document.querySelectorAll('.chg').length"))
+    check("JSエラーなし", not pg.errors, pg.errors)
+    pg.context.close()
+
+def t_roundtrip(b):
+    print("\n[JSON書き出し→読み込みで、追加した全項目が保持される]")
+    tmp = Path(tempfile.mkdtemp()); png = tmp / "face.png"; make_png(png)
+    pg = two_linked(b)
+    pg.fill("[data-role=att-attAB]", "好意を持っている"); pg.fill("[data-role=att-attBA]", "警戒している")
+    pg.click("[data-role=add-diff]"); pg.select_option(".diffitem select", "policy"); pg.fill(".diffitem textarea", "方法が違う")
+    pg.click("[data-role=add-change]"); pg.select_option("[data-role=pattern]", "trust")
+    pg.fill("[data-role=trigger]", "かばわれる"); pg.fill("[data-role=impact]", "秘密を話す"); pg.fill("[data-role=note]", "終盤で再登場")
+    pg.click("[data-role=add-change]"); pg.fill(".chg:nth-child(2) [data-role=trigger]", "二つ目のきっかけ")
+    bend_from_quarter(pg)
+    pg.click("[data-role=edit-basic]"); pg.click(".kchip[data-k=friend]"); pg.click(".dirs button[data-d=ab]"); pg.click(".dirs button[data-s=straight]"); pg.keyboard.press("Escape")
+    box = card_box(pg, "灯"); pg.mouse.click(box[0] + box[2] / 2, box[1] + 40); pg.wait_for_timeout(300)
+    pg.fill("[data-role=inner]", "実は迷っている"); check("目的・動機の欄が引き続き使え、書き込める", set_goal_field(pg, "禁書庫の謎を解く"))
+    with pg.expect_file_chooser() as fc:
+        pg.click("[data-role=img-choose]")
+    fc.value.set_files(str(png)); pg.wait_for_timeout(600)
+    src = cur(pg)
+    pg.click("#fileBtn")
+    with pg.expect_download() as dl:
+        pg.click("#exportBtn")
+    path = tmp / "out.json"; dl.value.save_as(str(path))
+    exp = json.loads(path.read_text(encoding="utf-8"))["maps"][0]
+    el = exp["links"][0]
+    check("書き出したJSONに、態度・違い・変化記録・曲げの点・線の形が含まれる",
+          el["attAB"] == "好意を持っている" and el["attBA"] == "警戒している" and el["diffs"][0]["cat"] == "policy" and len(el["changes"]) == 2 and len(el["pts"]) == 1 and el["shape"] == "straight" and el["kind"] == "friend" and el["dir"] == "ab")
+    check("書き出したJSONに、隠れた一面・目的・動機・画像が含まれる", by_name(exp, "灯")["inner"] == "実は迷っている" and any(f["k"] == "目的・動機" and f["v"] == "禁書庫の謎を解く" for f in by_name(exp, "灯")["fields"]) and by_name(exp, "灯")["img"].startswith("data:image/"))
+    check("変化記録の順序・IDが書き出される", [c["trigger"] for c in el["changes"]] == ["かばわれる", "二つ目のきっかけ"] and all(c["id"] for c in el["changes"]))
+    pg2 = new_page(b)
+    pg2.click("#fileBtn")
+    with pg2.expect_file_chooser() as fc2:
+        pg2.click("#importBtn")
+    fc2.value.set_files(str(path)); pg2.wait_for_timeout(1000)
+    got = cur(pg2); gl = got["links"][0]
+    same = all(gl[k] == el[k] for k in ("attAB", "attBA", "diffs", "changes", "pts", "shape", "kind", "dir", "label"))
+    check("読み込み直すと、関係のデータがすべて一致して復元される", same, {k: (gl[k], el[k]) for k in ("attAB", "changes", "pts") if gl[k] != el[k]})
+    gc = by_name(got, "灯")
+    check("読み込み直すと、人物のデータ（隠れた一面・目的・画像）も復元される", gc["inner"] == "実は迷っている" and any(f["v"] == "禁書庫の謎を解く" for f in gc["fields"]) and gc["img"] == by_name(exp, "灯")["img"])
+    check("人物と関係の紐づけ（ID）が保たれる", {gl["a"], gl["b"]} == {c["id"] for c in got["cards"]})
+    pg2.reload(wait_until="load"); pg2.wait_for_timeout(700)
+    check("読み込んだ後に再読み込みしても保持される", cur(pg2)["links"][0]["changes"][0]["trigger"] == "かばわれる")
+    check("JSエラーなし", not pg.errors and not pg2.errors, pg.errors + pg2.errors)
+    pg.context.close(); pg2.context.close()
+
+def t_undo_new(b):
+    print("\n[元に戻す・やり直す：追加した項目でも動く]")
+    pg = two_linked(b)
+    pg.click("[data-role=add-change]"); pg.wait_for_timeout(200)
+    pg.fill("[data-role=trigger]", "きっかけ"); pg.wait_for_timeout(1000)
+    pg.fill("[data-role=att-attAB]", "好意"); pg.wait_for_timeout(1000)
+    bend_from_quarter(pg)
+    def state():
+        l = cur(pg)["links"][0]
+        return (len(l["changes"]), l["changes"][0]["trigger"] if l["changes"] else None, l["attAB"], len(l["pts"]))
+    pg.mouse.click(1000, 120); pg.wait_for_timeout(300)          # 入力欄から離れる
+    check("操作後の状態", state() == (1, "きっかけ", "好意", 1), state())
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+    check("曲げの点の追加を元に戻せる", state()[3] == 0, state())
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+    check("態度の入力を元に戻せる", state()[2] == "", state())
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+    check("きっかけの入力を元に戻せる", state()[:2] == (1, ""), state())
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(300)
+    check("変化記録の追加を元に戻せる", state()[0] == 0, state())
+    for _ in range(4): pg.keyboard.press("Control+Shift+z"); pg.wait_for_timeout(250)
+    check("やり直すと、すべて元の状態に戻る", state() == (1, "きっかけ", "好意", 1), state())
+    pg.reload(wait_until="load"); pg.wait_for_timeout(700)
+    check("やり直した結果が自動保存される", state() == (1, "きっかけ", "好意", 1), state())
+    check("JSエラーなし", not pg.errors, pg.errors)
+    pg.context.close()
+
+def t_old_storage(b):
+    print("\n[拡張前の保存データ（ブラウザ内）・欠けた項目だらけのデータ]")
+    legacy = json.loads(LEGACY.read_text(encoding="utf-8"))
+    old_store = {"v": 1, "current": legacy["maps"][0]["id"], "ui": {}, "maps": legacy["maps"]}
+    ctx = b.new_context(viewport={"width": 1440, "height": 900})
+    ctx.add_init_script(f"if(!localStorage.getItem('{STORE}')) localStorage.setItem('{STORE}', {json.dumps(json.dumps(old_store))});")
+    pg = ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(URL, wait_until="load"); pg.wait_for_timeout(900)
+    check("拡張前の自動保存データを、そのまま開ける（人物6・関係7）", pg.evaluate("document.querySelectorAll('.card').length") == 6 and pg.evaluate("document.querySelectorAll('.lk').length") == 7)
+    pos_old = {c["name"]: (c["x"], c["y"]) for c in legacy["maps"][0]["cards"]}
+    pos_new = pg.evaluate("""() => { const o={}; document.querySelectorAll('.card').forEach(e=>{const t=/translate\\(([-\\d.]+)px,\\s*([-\\d.]+)px\\)/.exec(e.style.transform); o[e.getAttribute('aria-label')]=[+t[1],+t[2]];}); return o; }""")
+    check("人物の配置が変わらない", all(tuple(pos_new[n]) == tuple(p) for n, p in pos_old.items()))
+    for i in range(7):
+        pg.evaluate("i => document.querySelectorAll('.ltag')[i].dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}))", i) if False else None
+    pg.click(".ltag >> nth=0"); pg.wait_for_timeout(250); pg.keyboard.press("Escape")
+    box = card_box(pg, "灯"); pg.mouse.click(box[0] + box[2] / 2, box[1] + 40); pg.wait_for_timeout(300)
+    check("拡張前の人物・関係を開いても、エラーが出ない", not errs, errs)
+    pg.mouse.dblclick(1000, 150); pg.wait_for_timeout(300); pg.fill("[data-role=name]", "新人"); pg.wait_for_timeout(1000)
+    m = cur(pg)
+    check("編集して保存しても、既存の人物・関係が失われない", len(m["cards"]) == 7 and len(m["links"]) == 7 and "changes" in m["links"][0])
+    ctx.close()
+    # 欠けた項目だらけ・壊れた参照を含むデータ
+    sparse = {"maps": [{"id": "m1", "name": "まばら", "cards": [{"id": "a"}, {"id": "b", "x": 600, "name": "B", "fields": [{"k": "目的・動機"}], "img": 123, "imgY": "x"}],
+                        "links": [{"a": "a", "b": "b"}, {"a": "a", "b": "zzz"}, {"a": "a", "b": "b", "pts": [{"u": "x"}, {"u": 0.5, "v": 0.2}], "changes": [{}, {"pattern": "???"}], "diffs": [{"cat": "???"}], "dir": "??", "shape": 5}]}]}
+    ctx = b.new_context(viewport={"width": 1440, "height": 900})
+    ctx.add_init_script(f"if(!localStorage.getItem('{STORE}')) localStorage.setItem('{STORE}', {json.dumps(json.dumps(sparse))});")
+    pg = ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(URL, wait_until="load"); pg.wait_for_timeout(900)
+    check("項目が欠けた・壊れたデータでも、画面が止まらない", pg.evaluate("document.querySelectorAll('.card').length") == 2 and pg.evaluate("document.querySelectorAll('.lk').length") == 2 and not errs, errs)
+    pg.click("#zoomLabel"); pg.wait_for_timeout(600)          # 表示位置の指定がないので、全体を表示して見える位置に
+    pg.click(".ltag:visible >> nth=0"); pg.wait_for_timeout(300); pg.keyboard.press("Escape")
+    check("欠けた関係でも詳細欄が開く", pg.evaluate("document.getElementById('drTitle').textContent") == "関係の詳細" and not errs, errs)
+    ctx.close()
+
+def t_regression_more(b):
+    print("\n[回帰：関係の編集・ズーム・配置・削除]")
+    pg = two_linked(b)
+    pg.click("[data-role=edit-basic]"); pg.wait_for_timeout(250)
+    pg.fill(".pop-label", "親友"); pg.click(".kchip[data-k=friend]"); pg.click(".dirs button[data-d=ab]"); pg.wait_for_timeout(200)
+    l = cur(pg)["links"][0]
+    check("関係名・種類・矢印の向きを編集でき、保存される", l["label"] == "親友" and l["kind"] == "friend" and l["dir"] == "ab")
+    check("右の欄の要約が編集に追従する", "親友" in pg.evaluate("document.querySelector('.lhsum').textContent"))
+    pg.keyboard.press("Escape")
+    k0 = cur(pg)["view"]["k"]; pg.click("#zoomIn"); pg.wait_for_timeout(200); k1 = cur(pg)["view"]["k"]
+    pg.mouse.move(700, 300); pg.mouse.wheel(0, -400); pg.wait_for_timeout(300); k2 = cur(pg)["view"]["k"]
+    check("ズーム（ボタン・ホイール）が動く", k1 > k0 and k2 > k1, (k0, k1, k2))
+    box = card_box(pg, "蒼真"); x0 = by_name(cur(pg), "蒼真")["x"]
+    pg.mouse.move(box[0] + 100, box[1] + 50); pg.mouse.down(); pg.mouse.move(box[0] + 220, box[1] + 90, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    check("人物カードを動かして配置でき、保存される", by_name(cur(pg), "蒼真")["x"] != x0)
+    pg.reload(wait_until="load"); pg.wait_for_timeout(700)
+    check("配置とズームが再読み込み後も保たれる", by_name(cur(pg), "蒼真")["x"] != x0 and cur(pg)["view"]["k"] == k2)
+    pg.click(".ltag >> nth=0"); pg.wait_for_timeout(250); pg.keyboard.press("Escape"); pg.keyboard.press("Delete"); pg.wait_for_timeout(300)
+    check("関係をDeleteキーで削除できる（変化記録がなければ確認なし）", len(cur(pg)["links"]) == 0 and not pg.dialogs)
+    pg.click("#zoomLabel"); pg.wait_for_timeout(600)
+    box = card_box(pg, "蒼真"); pg.mouse.click(box[0] + box[2] / 2, box[1] + 40); pg.wait_for_timeout(300)
+    pg.click(".danger-btn"); pg.wait_for_timeout(300)
+    check("人物を削除できる", [c["name"] for c in cur(pg)["cards"]] == ["灯"])
+    check("JSエラーなし", not pg.errors, pg.errors)
+    pg.context.close()
+
+
+def t_blank_items(b):
+    print("\n[名前の空の人物・関係名の空の線（表示のずれ）]")
+    pg = new_page(b)
+    check("案内表示が出る（人物がいないとき）", pg.evaluate("!document.getElementById('empty').hidden") and pg.evaluate("getComputedStyle(document.getElementById('empty')).position") == "fixed")
+    pg.mouse.dblclick(330, 360); pg.wait_for_timeout(300); pg.keyboard.press("Escape")
+    pg.mouse.dblclick(800, 380); pg.wait_for_timeout(300); pg.keyboard.press("Escape")
+    check("人物を置くと案内表示が消える", pg.evaluate("document.getElementById('empty').hidden"))
+    r = pg.evaluate("""() => [...document.querySelectorAll('.card')].map(c => { const n=c.querySelector('.nm'), a=c.getBoundingClientRect(), b=n.getBoundingClientRect();
+        return { pos:getComputedStyle(n).position, inside: b.left>=a.left && b.right<=a.right && b.top>=a.top && b.bottom<=a.bottom }; })""")
+    check("名前が空の人物でも、名前欄（点線のマス）はカードの中に収まる", all(x["pos"] != "fixed" and x["inside"] for x in r), r)
+    A, B = pg.evaluate("[...document.querySelectorAll('.card')].map(e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]})")
+    pg.mouse.move(A[0] + A[2] / 2, A[1] + A[3] / 2); pg.wait_for_timeout(150)
+    hd = pg.evaluate("(()=>{const r=document.querySelectorAll('.card')[0].querySelector('.h-r').getBoundingClientRect();return [r.left+8,r.top+8]})()")
+    pg.mouse.move(*hd); pg.mouse.down(); pg.mouse.move(B[0] + B[2] / 2, B[1] + B[3] / 2, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    pg.keyboard.press("Enter"); pg.wait_for_timeout(300)                      # 関係の名前を入れずに確定
+    t = pg.evaluate("""() => { const t=document.querySelector('.ltag'), c=getComputedStyle(t), r=t.getBoundingClientRect();
+        const cards=[...document.querySelectorAll('.card')].map(e=>e.getBoundingClientRect());
+        const cx=r.left+r.width/2, cy=r.top+r.height/2;
+        return { pos:c.position, pe:c.pointerEvents, between: cx>cards[0].right && cx<cards[1].left, cy, top:cards[0].top, bottom:cards[0].bottom }; }""")
+    check("関係の名前が空の荷札は、2枚のカードの間にあり、画面に固定されない", t["pos"] != "fixed" and t["between"], t)
+    check("関係の名前が空の荷札も、クリックできる", t["pe"] != "none", t)
+    pg.keyboard.press("Escape")
+    pg.mouse.click(1000, 150); pg.wait_for_timeout(250)
+    tb = pg.evaluate("(()=>{const r=document.querySelector('.ltag').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()")
+    pg.mouse.click(*tb); pg.wait_for_timeout(300)
+    check("空の荷札をクリックすると、関係の編集が開く", pg.evaluate("!document.getElementById('linkPop').hidden"))
+    check("JSエラーなし", not pg.errors, pg.errors)
+    pg.context.close()
+
 def main():
     with sync_playwright() as p:
         b = p.chromium.launch()
-        for t in (t_existing_features, t_attitudes_and_diffs, t_changes, t_person_view, t_delete, t_legacy, t_image, t_arrows, t_free_line, t_mobile):
+        for t in (t_existing_features, t_attitudes_and_diffs, t_changes, t_person_view, t_delete, t_legacy, t_image, t_arrows, t_free_line, t_mobile, t_no_silent_loss, t_roundtrip, t_undo_new, t_old_storage, t_regression_more, t_blank_items):
             try:
                 t(b)
             except Exception as e:
