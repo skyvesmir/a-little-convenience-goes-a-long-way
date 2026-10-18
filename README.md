@@ -46,9 +46,7 @@
 
 次の URL で開けます。
 
-```
 https://skyvesmir.github.io/a-little-convenience-goes-a-long-way/
-```
 
 ## ツールを追加するには
 
